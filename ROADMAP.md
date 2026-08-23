@@ -2,10 +2,16 @@
 
 Company.md will earn adoption by making company-aware agent work measurably more reliable. Dates are intentionally absent; each milestone closes evidence gates rather than shipping on a marketing deadline.
 
+## Shipped in 0.3
+
+- Public Codex marketplace and plugin installation from the GitHub repository.
+- Isolated `$company` routing test against an active enterprise-mode pack.
+- Clean-package workflows on Linux, macOS, and Windows.
+- Required coverage, dependency review, production audit, and CodeQL gates on `main`.
+
 ## Now — make the first workflow undeniable
 
 - Publish the `company.md` npm package with trusted publishing and provenance.
-- Validate the public Codex marketplace install from a clean environment.
 - Complete the Meridian sales-deck evaluation with a real `.pptx`, rendered-slide inspection, and traceability receipt.
 - Add at least three sanitized adopter evaluations from different organization shapes.
 - Measure time-to-first-valid-pack and reduce avoidable authoring friction.

@@ -171,9 +171,10 @@ The checked-in [sales-deck evaluation](evals/sales-deck/SCENARIO.md) compares a 
 | Textual conformance rubric | Pass: every baseline failure fixed, 0 regressions |
 | Source and artifact traceability | Pass: portable paths and SHA-256 hashes |
 | Package install and CLI workflow | Pass: both binaries in a clean environment |
+| Public Codex plugin and `$company` routing | Pass: isolated install selected the packaged skill and enforced a prohibited claim |
 | PowerPoint export and rendered-slide QA | Open gate: presentation runtime unavailable in the recorded run |
 
-Read the exact [result and limitation](evals/sales-deck/RESULT.md). Company.md does not call deck generation production-ready until the `.pptx` is exported, rendered, and inspected. That visible failure boundary is intentional: trustworthy context infrastructure should show what it has not proved.
+Read the exact [sales-deck result and limitation](evals/sales-deck/RESULT.md) and the [public plugin smoke result](evals/plugin-smoke/RESULT.md). Company.md does not call deck generation production-ready until the `.pptx` is exported, rendered, and inspected. That visible failure boundary is intentional: trustworthy context infrastructure should show what it has not proved.
 
 ## Enterprise rollout
 
