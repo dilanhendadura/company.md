@@ -1,0 +1,37 @@
+{
+  "name": "company-md",
+  "version": "0.3.0",
+  "description": "Create on-brand work from governed company context.",
+  "author": {
+    "name": "Dilan Hendadura",
+    "url": "https://github.com/dilanhendadura"
+  },
+  "homepage": "https://github.com/dilanhendadura/company.md#readme",
+  "repository": "https://github.com/dilanhendadura/company.md",
+  "license": "Apache-2.0",
+  "keywords": [
+    "company-context",
+    "enterprise-ai",
+    "agent-skills",
+    "brand-governance"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Company.md",
+    "shortDescription": "Create work from approved company context",
+    "longDescription": "Give Codex governed company, customer, offer, voice, and visual context for sales, marketing, product, and support work.",
+    "developerName": "Dilan Hendadura",
+    "category": "Productivity",
+    "capabilities": [],
+    "websiteURL": "https://github.com/dilanhendadura/company.md",
+    "brandColor": "#172033",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/logo.svg",
+    "logoDark": "./assets/logo-dark.svg",
+    "defaultPrompt": [
+      "Create a sales deck for this customer using our approved company and design context.",
+      "Review this proposal against our offer and claims policy.",
+      "Write a follow-up email in our approved voice."
+    ]
+  }
+}

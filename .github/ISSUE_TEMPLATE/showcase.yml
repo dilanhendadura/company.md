@@ -1,0 +1,58 @@
+name: Adoption showcase
+description: Share a sanitized Company.md workflow and before/after result.
+title: "[Showcase]: "
+labels: [showcase]
+body:
+  - type: markdown
+    attributes:
+      value: Share evidence that can improve the standard. Remove company secrets, credentials, personal data, customer identifiers, and confidential context before posting.
+  - type: dropdown
+    id: organization
+    attributes:
+      label: Organization shape
+      options:
+        - Solo or small team
+        - Startup or scale-up
+        - Enterprise business unit
+        - Multi-brand or multi-region enterprise
+        - Agency or consultancy
+        - Open-source project
+    validations:
+      required: true
+  - type: input
+    id: artifact
+    attributes:
+      label: Artifact or workflow
+      placeholder: Sales deck, proposal, landing page, support reply, product copy...
+    validations:
+      required: true
+  - type: textarea
+    id: before
+    attributes:
+      label: Before Company.md
+      description: What failed, drifted, or required repeated prompting?
+    validations:
+      required: true
+  - type: textarea
+    id: after
+    attributes:
+      label: After Company.md
+      description: What changed? Include an explicit rubric or observable result when possible.
+    validations:
+      required: true
+  - type: textarea
+    id: friction
+    attributes:
+      label: Friction and open gates
+      description: What remained difficult, manual, ambiguous, or unproved?
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed secrets, personal data, customer identifiers, and confidential company context.
+          required: true
+        - label: I give the project permission to link to or adapt this sanitized example under the repository license.
+          required: true

@@ -1,0 +1,20 @@
+{
+  "name": "company-md",
+  "interface": {
+    "displayName": "Company.md"
+  },
+  "plugins": [
+    {
+      "name": "company-md",
+      "source": {
+        "source": "local",
+        "path": "./plugins/company-md"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

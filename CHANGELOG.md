@@ -2,6 +2,16 @@
 
 All notable changes to Company.md will be documented here.
 
+## 0.3.0 — 2026-08-23
+
+- Packages Company.md as an installable Codex plugin with guided starter prompts and synchronized skill sources.
+- Adds a non-technical owner interview flow for creating or adopting a context pack.
+- Rebuilds onboarding around a tested GitHub quickstart and the native `$company` Codex invocation.
+- Adds a public compatibility map, governance model, evidence-gated roadmap, launch kit, and adoption showcase template.
+- Adds coverage thresholds, clean-package tests, Linux/macOS/Windows smoke jobs, dependency review, production audit, and CodeQL.
+- Prepares npm trusted publishing with OIDC and provenance while keeping registry publication an explicit external gate.
+- Adds a reusable visual identity and social-preview asset for the open-source launch.
+
 ## 0.2.0 — 2026-08-23
 
 - Adds the `companymd/context/v1` dialect namespace and explicit collision detection.

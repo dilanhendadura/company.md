@@ -1,101 +1,128 @@
+<p align="center">
+  <img src="assets/company-md-hero.svg" alt="Company.md — approved context, reliable AI work" width="100%">
+</p>
+
 # Company.md
 
 [![CI](https://github.com/dilanhendadura/company.md/actions/workflows/ci.yml/badge.svg)](https://github.com/dilanhendadura/company.md/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/dilanhendadura/company.md/actions/workflows/codeql.yml/badge.svg)](https://github.com/dilanhendadura/company.md/actions/workflows/codeql.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-2563eb.svg)](LICENSE)
 [![Node.js 20+](https://img.shields.io/badge/node-%3E%3D20-339933.svg)](package.json)
 
-**Give every AI agent the same approved business context—without pasting it into every prompt.** Company.md turns four small Markdown files into a source-controlled contract that people can review, agents can follow, and CI can validate.
+**The open context standard for company-aware AI.** Give every agent the same approved company, customer, offer, voice, and design context—without pasting it into every prompt.
+
+```text
+$company create a sales deck for Meridian using our approved design
+```
+
+The agent loads only the context needed, checks claims and commercial boundaries, uses the linked visual system, creates the artifact, and leaves a source receipt. The files stay plain Markdown: business teams can own them, legal can review them, Git can version them, and any coding agent can read them.
+
+Company.md was sparked by [this tweet by Corey Ganim](https://x.com/coreyganim/status/2091196448364974090?s=46) about the four context files every useful AI workspace needs.
+
+## Try it in 30 seconds
+
+Create a governed starter pack directly from GitHub:
+
+```bash
+npx --yes --package=github:dilanhendadura/company.md companymd init ./company-context \
+  --name "Acme Corporation" \
+  --owner "Corporate Strategy" \
+  --contact "strategy@example.com" \
+  --with-design
+```
+
+Then open that workspace in Codex and install the repository-scoped skill:
+
+```bash
+npx --yes --package=github:dilanhendadura/company.md companymd install ./company-context --agent codex
+```
+
+Run `/skills` and select **Company.md**, or invoke it directly:
+
+```text
+$company interview me and complete our Company.md drafts
+$company create a sales deck for this customer using our approved design
+$company review this proposal against our offer and claims policy
+```
+
+The initializer creates drafts, not fake certainty. The skill interviews the owners, records unknowns, and keeps the files in `draft` until the named humans approve them.
+
+### Install as a Codex plugin
+
+The plugin packages the skill and its guided prompts for reuse across workspaces:
+
+```bash
+codex plugin marketplace add dilanhendadura/company.md
+codex plugin add company-md@company-md
+```
+
+The npm release will shorten the CLI commands to `npx company.md ...`; until it is published, the GitHub commands above are the reproducible path.
+
+## The standard
 
 ```text
 COMPANY.md  ─┬─ CUSTOMER.md
              ├─ OFFER.md
              ├─ VOICE.md
-             └─ DESIGN.md (optional, validated with @google/design.md)
+             └─ DESIGN.md  optional; validated with @google/design.md
 ```
 
-```text
-$company create a sales deck for Meridian using the approved design
-```
-
-The agent loads the right company, customer, offer, voice, and visual context; refuses unsupported claims; creates the artifact with the appropriate tool; and leaves a source receipt beside file-based outputs. Company.md complements `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and similar instruction files instead of replacing them.
-
-Company.md was sparked by [this tweet by Corey Ganim](https://x.com/coreyganim/status/2091196448364974090?s=46) about the four context files every useful AI workspace needs.
-
-## Why this exists
-
-Prompts are temporary. Company knowledge is shared, reviewed, scoped, and constantly changing. Company.md makes that knowledge:
-
-- **agent-readable:** stable sections plus structured YAML metadata;
-- **human-owned:** every file names owners, scope, classification, and review dates;
-- **evidence-aware:** important statements can reference a claim registry instead of disguising assumptions as facts;
-- **composable:** company-wide files can be specialized with governed overlays;
-- **safe to consume:** context bundles fail closed on validation, draft status, and clearance;
-- **visual when needed:** `COMPANY.md` can link to a standard [`DESIGN.md`](https://github.com/google-labs-code/design.md).
-
-Classification labels are policy metadata, not access control. Store these files in systems whose real permissions match their declared classification, and never put credentials or personal data in them.
-
-## Quick start
-
-Requirements: Node.js 20 or newer.
-
-From this repository:
-
-```bash
-npm install
-npm run build
-
-node dist/cli.js init ./company-context \
-  --name "Acme Corporation" \
-  --owner "Corporate Strategy" \
-  --contact "strategy@example.com" \
-  --mode starter \
-  --with-design
-
-node dist/cli.js lint ./company-context --format pretty
-```
-
-After the first npm release, the same commands can run as `npx company.md ...`. On Windows, use the dot-free alias with `npx -p company.md companymd ...` to avoid Markdown file-association collisions.
-
-The initializer creates drafts. `starter` keeps incomplete authoring guidance informational; `team` turns collaboration gaps into warnings; `enterprise` requires durable escalation contacts and is intended for strict CI. A coding agent can interview the owners using the [authoring playbook](docs/authoring-playbook.md), replace placeholders, register evidence, and open a pull request. Humans then approve the files and change `status` to `active`.
-
-For the lowest-friction start, seed a draft from a public homepage. Imported wording is always marked as a low-confidence assumption:
-
-```bash
-companymd create https://acme.example ./company-context --with-design
-companymd adopt ./existing-workspace --format pretty
-```
-
-Generate only the context required for a task:
-
-```bash
-# Business fundamentals only
-npx company.md context ./company-context --profile core
-
-# Company + customer + offer + voice
-npx company.md context ./company-context --profile communications \
-  --output .company-context.md
-
-# All business context followed by DESIGN.md
-npx company.md context ./company-context --profile visual \
-  --clearance internal \
-  --output .company-context.md \
-  --receipt .company-context.receipt.json
-```
-
-Profiles are cumulative: `core`, `customer`, `commercial`, `communications`, `visual`, and `all`. Context generation refuses invalid, deprecated, over-classified, or draft sources by default. During authoring, use `--allow-draft` deliberately.
-
-## The four-file minimum
-
-| File | Question it answers | Required content |
+| File | The question it answers | Minimum useful content |
 | --- | --- | --- |
 | `COMPANY.md` | Who are we? | What the company sells, serves, earns from, believes, differentiates, and will not do |
 | `CUSTOMER.md` | Who are we for? | ICP, pains, objections, triggers, questions, language, fears, criteria, and exclusions |
 | `OFFER.md` | What can we promise? | Packages, deliverables, pricing logic, proof, promises, prohibited claims, fit, and guardrails |
 | `VOICE.md` | How do we communicate? | Voice behavior, anti-patterns, phrases, mechanics, channel adaptations, and examples |
+| `DESIGN.md` | How should it look and behave? | Visual rationale, tokens, components, density, and prohibitions |
 
-`DESIGN.md` is an optional fifth file. Company.md owns business meaning and verbal constraints; DESIGN.md owns visual rationale and design tokens. The CLI validates a linked design file with Google's official linter and places it last in visual context bundles.
+Company.md owns business meaning and verbal constraints. The optional `DESIGN.md` owns visual decisions and is checked with Google's official linter. Structured front matter gives agents exact metadata; Markdown prose preserves the intent humans need to review.
+
+## Why teams use it
+
+| Without Company.md | With Company.md |
+| --- | --- |
+| Brand and offer context is pasted into every prompt | One reviewed source is loaded on demand |
+| Different agents invent different answers | Every agent sees the same scoped truth |
+| Drafts, assumptions, and approved claims look identical | Status, evidence, owner, and confidence are explicit |
+| A deck can be on-brand but commercially wrong | Business constraints are applied before visual rules |
+| Nobody can reconstruct which context produced a file | Receipts record sources and SHA-256 hashes |
+| Context quietly grows stale | Owners and review dates are linted in CI |
+
+This is a context contract, not an access-control system. Real repository and document permissions must match the declared classification. Never store credentials, raw personal data, or unrestricted confidential material in a pack.
+
+## How agents use it
+
+```text
+plain-language request
+        │
+        ▼
+locate + lint the nearest pack
+        │
+        ▼
+load the narrowest profile
+core → customer → commercial → communications → visual
+        │
+        ▼
+create or review the deliverable
+        │
+        ▼
+claims check + source receipt + human approval gate
+```
+
+Company.md follows the successful patterns behind [`AGENTS.md`](https://agents.md/), `CLAUDE.md`, and `GEMINI.md`: plain files, directory scope, progressive disclosure, and version control. It complements those instruction files instead of replacing them:
+
+| Standard | Primary job |
+| --- | --- |
+| `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` | Tell an agent how to work in a repository |
+| `llms.txt` | Help a model discover useful website content |
+| `DESIGN.md` | Preserve visual intent and implementation rules |
+| **Company.md** | Define what the business may say, sell, promise, and represent |
+
+See [Compatibility](docs/compatibility.md) for the boundaries and integration patterns.
 
 ## CLI
+
+Requirements: Node.js 20 or newer.
 
 ```text
 companymd init [directory] --name <name> [--with-design]
@@ -110,44 +137,83 @@ companymd spec
 companymd schema
 ```
 
-`lint` emits JSON by default and returns exit code `1` for errors. `--strict` also fails on warnings. `diff` reports changed metadata and sections and returns `1` when validation findings regress. `eval` compares explicit conformance criteria before and after Company.md; it deliberately does not produce a truth score. The programmatic API exports the same capabilities. See the [lint rule reference](docs/lint-rules.md) for stable finding IDs.
-
-## Use it with a coding agent
-
-Install the repository-scoped Company skill:
+Useful workflows:
 
 ```bash
-companymd install . --agent codex
+# Seed low-confidence drafts from a public homepage
+companymd create https://acme.example ./company-context --with-design
+
+# Inventory existing sources without rewriting them
+companymd adopt ./existing-workspace --format pretty
+
+# Validate for CI; warnings fail too
+companymd lint ./company-context --strict
+
+# Give an agent only the context required for visual work
+companymd context ./company-context \
+  --profile visual \
+  --clearance internal \
+  --output .company-context.md \
+  --receipt .company-context.receipt.json
 ```
 
-In Codex, type `$company` to invoke it directly, or type `/` and select the enabled **Company** skill from the command list. The user only describes the outcome:
+Profiles are cumulative: `core`, `customer`, `commercial`, `communications`, `visual`, and `all`. Context generation refuses invalid, deprecated, over-classified, or draft sources by default. During authoring, use `--allow-draft` deliberately.
 
-```text
-$company create a sales deck for Meridian using the approved design
-$company review this proposal against our offer and claims policy
-$company write a follow-up email for this buyer
+`starter` keeps incomplete authoring guidance informational; `team` turns collaboration gaps into warnings; `enterprise` requires durable escalation contacts for strict CI. `lint` emits JSON by default and returns exit code `1` for errors. `diff` reports semantic changes and fails when validation regresses. `eval` measures explicit conformance criteria without pretending to produce a universal truth score.
+
+## Proof, not a demo claim
+
+The checked-in [sales-deck evaluation](evals/sales-deck/SCENARIO.md) compares a no-context baseline with a Company.md-guided candidate for a fictional enterprise buyer.
+
+| Gate | Current result |
+| --- | --- |
+| Business + DESIGN.md validation | Pass: 0 errors, 0 warnings |
+| Textual conformance rubric | Pass: every baseline failure fixed, 0 regressions |
+| Source and artifact traceability | Pass: portable paths and SHA-256 hashes |
+| Package install and CLI workflow | Pass: both binaries in a clean environment |
+| PowerPoint export and rendered-slide QA | Open gate: presentation runtime unavailable in the recorded run |
+
+Read the exact [result and limitation](evals/sales-deck/RESULT.md). Company.md does not call deck generation production-ready until the `.pptx` is exported, rendered, and inspected. That visible failure boundary is intentional: trustworthy context infrastructure should show what it has not proved.
+
+## Enterprise rollout
+
+Start with one high-frequency artifact and one accountable business owner. Do not begin by documenting the whole company.
+
+1. **Pilot:** create the four-file minimum for one offer and one ICP.
+2. **Prove:** compare the same task with and without the pack using an explicit rubric.
+3. **Govern:** add owners, classification, review dates, claim evidence, and CODEOWNERS.
+4. **Scale:** add scoped overlays by business unit, product, region, or locale.
+5. **Enforce:** lint active packs and inspect semantic diffs in CI.
+
+The [authoring playbook](docs/authoring-playbook.md) is written for coding agents interviewing non-technical owners. The [enterprise adoption guide](docs/enterprise-adoption.md) covers scope, approvals, classification, and rollout. [GOVERNANCE.md](GOVERNANCE.md) explains how the open standard itself evolves.
+
+## Quality and security
+
+Every change is checked on Node.js 20 and 24. Release gates include coverage thresholds, clean-package installation, Linux/macOS/Windows smoke tests, dependency review, production dependency audit, CodeQL, plugin validation, skill validation, and npm provenance-ready publishing.
+
+```bash
+npm install
+npm run check
+npm run test:coverage
+npm run test:package
 ```
 
-The skill finds and validates the pack, selects the narrowest context profile, separates client facts from company truth, uses `DESIGN.md` for visual work, and records the exact sources behind file-based outputs. Codex may also select the skill implicitly when the request clearly matches its description.
+Classification labels are metadata, not enforcement. Review [SECURITY.md](SECURITY.md) before using Company.md with enterprise context.
 
-Copy [integrations/AGENTS.md](integrations/AGENTS.md) into the relevant part of a repository, or adapt the same contract for another agent instruction file. The safe loop is:
+## Status and roadmap
 
-1. lint the source pack;
-2. request the narrowest context profile for the task;
-3. make the deliverable without inventing missing facts;
-4. cite proposed context changes in a separate pull request;
-5. require the declared owners to approve active-context changes.
+The CLI is at `0.3`; the compatible context format remains `companymd/context/v1`. Unknown metadata keys and extra Markdown sections are preserved so organizations can extend the format without waiting for `1.0`.
 
-For a larger rollout, see [Enterprise adoption](docs/enterprise-adoption.md). The complete normative definition is in [SPEC.md](SPEC.md). Behavioral validation starts with the reproducible [sales-deck evaluation](evals/sales-deck/SCENARIO.md), its [latest result](evals/sales-deck/RESULT.md), and the [evaluation guide](docs/evaluation.md).
-
-## Status
-
-The CLI is at `0.2`; the compatible context format remains `0.1` and now declares the unambiguous dialect `companymd/context/v1`. Unknown metadata keys and extra Markdown sections are preserved so organizations can extend the format without waiting for `1.0`.
+The public [roadmap](ROADMAP.md) prioritizes evidence-backed interoperability, real artifact evals, and migration safety. The [launch kit](docs/launch-kit.md) contains a transparent demo script and ready-to-adapt launch copy.
 
 ## Inspiration and relationship to DESIGN.md
 
-Company.md adopts the useful pattern demonstrated by [Google Labs' DESIGN.md](https://github.com/google-labs-code/design.md): machine-readable front matter for exact values, Markdown prose for intent, a JSON-first linter, semantic diffs, and context that persists across agents. Company.md is an independent project and specification focused on enterprise business context; it uses `@google/design.md` as a dependency only when validating a linked visual system.
+Company.md adopts the useful pattern demonstrated by [Google Labs' DESIGN.md](https://github.com/google-labs-code/design.md): machine-readable front matter for exact values, Markdown prose for intent, a JSON-first linter, semantic diffs, and context that persists across agents. Company.md is an independent project focused on enterprise business context; it uses `@google/design.md` only when validating a linked visual system.
 
 ## Contributing
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a schema or behavior change. The project is released under the [Apache License 2.0](LICENSE).
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a schema or behavior change. Use [GitHub Discussions](https://github.com/dilanhendadura/company.md/discussions) for adoption patterns and open questions; use issues for reproducible failures and format proposals.
+
+If this solves a context problem your team keeps repeating, try the pilot and share the result—successful or not. That evidence is more valuable than another abstract feature request.
+
+Released under the [Apache License 2.0](LICENSE).

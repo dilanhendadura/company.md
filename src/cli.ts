@@ -16,7 +16,7 @@ import { parseDocument } from './parser.js';
 import { CLASSIFICATIONS, MATURITY_LEVELS, PROFILE_ROLES, SPEC_VERSION } from './spec.js';
 import type { Classification, Finding, LintReport, MaturityLevel } from './types.js';
 
-const VERSION = '0.2.0';
+const VERSION = '0.3.0';
 const BOOLEAN_OPTIONS = new Set(['strict', 'with-design', 'force', 'allow-invalid', 'allow-draft', 'help', 'version']);
 
 async function main(argv: string[]): Promise<number> {
