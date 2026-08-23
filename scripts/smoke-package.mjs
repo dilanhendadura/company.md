@@ -30,15 +30,17 @@ function requirePath(path) {
 }
 
 try {
-  const npm = process.platform === "win32" ? "npm.cmd" : "npm";
+  const npmCli = process.env.npm_execpath;
+  if (!npmCli) throw new Error("Run this smoke test through `npm run test:package`.");
+  const npm = process.execPath;
   const packed = JSON.parse(
-    run(npm, ["pack", "--json", "--pack-destination", sandbox], { quiet: true }),
+    run(npm, [npmCli, "pack", "--json", "--pack-destination", sandbox], { quiet: true }),
   );
   const tarball = join(sandbox, packed[0].filename);
 
   mkdirSync(consumer);
-  run(npm, ["init", "--yes"], { cwd: consumer, quiet: true });
-  run(npm, ["install", "--ignore-scripts", "--no-audit", "--no-fund", tarball], {
+  run(npm, [npmCli, "init", "--yes"], { cwd: consumer, quiet: true });
+  run(npm, [npmCli, "install", "--ignore-scripts", "--no-audit", "--no-fund", tarball], {
     cwd: consumer,
     quiet: true,
   });
