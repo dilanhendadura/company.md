@@ -1,0 +1,58 @@
+---
+companymd: "0.1"
+kind: offer
+id: {{COMPANY_ID}}.offer.primary
+company: {{COMPANY_ID}}
+name: "{{COMPANY_NAME}} offer"
+status: draft
+classification: {{CLASSIFICATION}}
+owners:
+  - team: "{{OWNER_TEAM}}"
+    contact: "{{OWNER_CONTACT}}"
+review:
+  last_reviewed: "{{LAST_REVIEWED}}"
+  next_review: "{{NEXT_REVIEW}}"
+scope:
+  business_units: [all]
+  regions: [all]
+  products: [all]
+claims: []
+---
+
+# {{COMPANY_NAME}} offer context
+
+## Packages
+
+TODO: Name current packages, their audience, outcome, and commercial status.
+
+## Deliverables
+
+TODO: State what is included, excluded, optional, and customer-provided.
+
+## Pricing Logic
+
+TODO: Explain approved pricing principles and escalation rules. Do not invent numbers.
+
+## Proof
+
+TODO: Register approved evidence, the scope it supports, and its expiry.
+
+## Promises
+
+TODO: State promises that every team can operationally keep.
+
+## Claims to Avoid
+
+TODO: List prohibited, unverified, regulated, absolute, or misleading claims.
+
+## Good-Fit Customers
+
+TODO: Define the operational and commercial conditions for a successful engagement.
+
+## Commercial Guardrails
+
+TODO: Document approval thresholds, non-standard terms, and human escalation points.
+
+## Evidence and Open Questions
+
+TODO: List commercial unknowns, owners, and dates for resolution.

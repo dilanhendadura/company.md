@@ -1,0 +1,59 @@
+---
+companymd: "0.1"
+kind: voice
+id: {{COMPANY_ID}}.voice.primary
+company: {{COMPANY_ID}}
+name: "{{COMPANY_NAME}} voice"
+status: draft
+classification: {{CLASSIFICATION}}
+owners:
+  - team: "{{OWNER_TEAM}}"
+    contact: "{{OWNER_CONTACT}}"
+review:
+  last_reviewed: "{{LAST_REVIEWED}}"
+  next_review: "{{NEXT_REVIEW}}"
+scope:
+  business_units: [all]
+  regions: [all]
+  products: [all]
+  locales: [all]
+claims: []
+---
+
+# {{COMPANY_NAME}} voice context
+
+## Voice Principles
+
+TODO: Define three to five specific principles with a behavioral consequence for each.
+
+## How We Talk
+
+TODO: Describe cadence, directness, perspective, and emotional register.
+
+## How We Never Sound
+
+TODO: Name recognizable anti-patterns rather than a long adjective list.
+
+## Phrases We Use
+
+TODO: Include approved phrases and when they are appropriate.
+
+## Phrases We Avoid
+
+TODO: Include banned phrases, the reason, and a preferred replacement.
+
+## Writing Mechanics
+
+TODO: Set rules for headings, sentence length, jargon, numbers, punctuation, and accessibility.
+
+## Channel Adaptations
+
+TODO: Explain what changes—and what never changes—across product, sales, support, social, and executive communication.
+
+## Examples of Good Writing
+
+TODO: Add paired before/after examples grounded in real recurring tasks.
+
+## Review Checklist
+
+TODO: Provide a short pass/fail checklist an agent can apply before returning copy.

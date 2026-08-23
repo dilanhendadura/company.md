@@ -1,0 +1,9 @@
+Company.md
+Copyright 2026 Company.md contributors
+
+This product is inspired by the structure and agent-first philosophy of
+Google Labs' DESIGN.md project and integrates its separately distributed
+@google/design.md package for optional visual validation.
+
+The conceptual four-file starting point was inspired by a post by Corey Ganim:
+https://x.com/coreyganim/status/2091196448364974090

@@ -1,0 +1,67 @@
+{
+  "name": "company.md",
+  "version": "0.1.0",
+  "description": "An open, agent-readable company context standard for enterprise AI workspaces.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "bin": {
+    "company.md": "./dist/cli.js",
+    "companymd": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./linter": {
+      "types": "./dist/lint.d.ts",
+      "import": "./dist/lint.js"
+    }
+  },
+  "files": [
+    "dist",
+    "templates",
+    "schemas",
+    "docs",
+    "integrations",
+    "examples/northstar",
+    "SPEC.md",
+    "README.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "CODE_OF_CONDUCT.md",
+    "SECURITY.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "check": "npm run typecheck && npm test && npm run check:example",
+    "check:example": "node dist/cli.js lint examples/northstar",
+    "dev": "tsx src/cli.ts",
+    "test": "npm run build && tsx --test test/*.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@google/design.md": "0.4.0",
+    "yaml": "^2.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "company-context",
+    "enterprise-ai",
+    "markdown"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,0 +1,58 @@
+---
+companymd: "0.1"
+kind: company
+id: {{COMPANY_ID}}
+name: "{{COMPANY_NAME}}"
+status: draft
+classification: {{CLASSIFICATION}}
+owners:
+  - team: "{{OWNER_TEAM}}"
+    contact: "{{OWNER_CONTACT}}"
+review:
+  last_reviewed: "{{LAST_REVIEWED}}"
+  next_review: "{{NEXT_REVIEW}}"
+scope:
+  business_units: [all]
+  regions: [all]
+  products: [all]
+links:
+  customer: ./CUSTOMER.md
+  offer: ./OFFER.md
+  voice: ./VOICE.md
+{{DESIGN_LINK}}
+claims: []
+---
+
+# {{COMPANY_NAME}} company context
+
+## Overview
+
+TODO: In two concrete sentences, say what the company is and the change it creates.
+
+## What We Sell
+
+TODO: Name the product and service categories. Link to an approved claim for time-sensitive facts.
+
+## Who We Serve
+
+TODO: Summarize the customer groups; put the detailed model in CUSTOMER.md.
+
+## How We Make Money
+
+TODO: Explain revenue mechanics without including confidential unit economics unless this file is classified accordingly.
+
+## What We Believe
+
+TODO: State the operating beliefs that actually change decisions. Avoid generic values.
+
+## What Makes Us Different
+
+TODO: Describe defensible differences and their evidence. Do not turn aspirations into facts.
+
+## Operating Boundaries
+
+TODO: State what the company does not sell, serve, promise, or optimize for.
+
+## Evidence and Open Questions
+
+TODO: List unresolved questions, assumptions, owners, and dates for resolution.

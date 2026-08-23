@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://company.md/schemas/0.1/frontmatter.schema.json",
+  "title": "Company.md 0.1 front matter",
+  "type": "object",
+  "required": [
+    "companymd",
+    "kind",
+    "id",
+    "name",
+    "status",
+    "classification",
+    "owners",
+    "review",
+    "scope"
+  ],
+  "properties": {
+    "companymd": { "const": "0.1" },
+    "kind": { "enum": ["company", "customer", "offer", "voice"] },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{1,127}$"
+    },
+    "company": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{1,127}$"
+    },
+    "name": { "type": "string", "minLength": 2 },
+    "status": { "enum": ["draft", "active", "deprecated"] },
+    "classification": { "enum": ["public", "internal", "confidential", "restricted"] },
+    "owners": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["team"],
+        "properties": {
+          "team": { "type": "string", "minLength": 1 },
+          "contact": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": true
+      }
+    },
+    "review": {
+      "type": "object",
+      "required": ["last_reviewed", "next_review"],
+      "properties": {
+        "last_reviewed": { "type": "string", "format": "date" },
+        "next_review": { "type": "string", "format": "date" }
+      },
+      "additionalProperties": false
+    },
+    "scope": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 1,
+        "items": { "type": "string", "minLength": 1 }
+      }
+    },
+    "extends": {
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      ]
+    },
+    "exceptions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["rule", "reason", "approved_by", "expires"],
+        "properties": {
+          "rule": { "type": "string", "minLength": 1 },
+          "reason": { "type": "string", "minLength": 1 },
+          "approved_by": { "type": "string", "minLength": 1 },
+          "expires": { "type": "string", "format": "date" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "status", "source", "owner"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]{1,127}$"
+          },
+          "status": { "enum": ["verified", "assumption", "decision", "deprecated"] },
+          "source": { "type": "string", "minLength": 1 },
+          "owner": { "type": "string", "minLength": 1 },
+          "verified_at": { "type": "string", "format": "date" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "links": {
+      "type": "object",
+      "properties": {
+        "customer": { "type": "string", "minLength": 1 },
+        "offer": { "type": "string", "minLength": 1 },
+        "voice": { "type": "string", "minLength": 1 },
+        "design": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "company" } } },
+      "then": {
+        "required": ["links"],
+        "properties": {
+          "links": { "required": ["customer", "offer", "voice"] }
+        }
+      },
+      "else": { "required": ["company"] }
+    }
+  ],
+  "additionalProperties": true
+}

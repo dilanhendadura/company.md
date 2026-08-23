@@ -1,0 +1,62 @@
+---
+companymd: "0.1"
+kind: customer
+id: {{COMPANY_ID}}.customer.primary
+company: {{COMPANY_ID}}
+name: "{{COMPANY_NAME}} primary customer"
+status: draft
+classification: {{CLASSIFICATION}}
+owners:
+  - team: "{{OWNER_TEAM}}"
+    contact: "{{OWNER_CONTACT}}"
+review:
+  last_reviewed: "{{LAST_REVIEWED}}"
+  next_review: "{{NEXT_REVIEW}}"
+scope:
+  business_units: [all]
+  regions: [all]
+  products: [all]
+claims: []
+---
+
+# {{COMPANY_NAME}} customer context
+
+## Ideal Customer Profile
+
+TODO: Define firmographic, situational, behavioral, and readiness signals.
+
+## Pains
+
+TODO: Describe observable problems, their cost, and how customers experience them.
+
+## Objections
+
+TODO: Record real objections and the conditions under which they are valid.
+
+## Buying Triggers
+
+TODO: List events that create urgency or budget.
+
+## Questions
+
+TODO: List the questions customers ask before, during, and after evaluation.
+
+## Language
+
+TODO: Use verbatim customer language with source and segment context.
+
+## Fears
+
+TODO: Capture personal, operational, financial, and reputational fears without stereotyping.
+
+## Decision Criteria
+
+TODO: Rank the criteria, decision roles, and evidence needed to proceed.
+
+## Exclusions
+
+TODO: Define anti-ICP signals and customers the company should not target.
+
+## Evidence and Open Questions
+
+TODO: List research gaps, assumptions, owners, and planned validation.
