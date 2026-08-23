@@ -246,6 +246,8 @@ Within each role, bases appear before overlays. `DESIGN.md` appears last so visu
 
 Generated bundles MUST identify their profile, clearance, generation time, and source files. A consumer MAY emit a `companymd/context-receipt/v1` sidecar containing source paths and SHA-256 digests. Generated bundles and receipts are disposable artifacts and MUST NOT become a second source of truth.
 
+A file-based deliverable MAY carry a sibling `companymd/receipt/v1` sidecar conforming to [`schemas/artifact-receipt.schema.json`](schemas/artifact-receipt.schema.json), with the deliverable digest, governed source digests, generated intermediate digests, client-source labels, unresolved facts, and verification gates. A blocked receipt MAY identify an expected deliverable that does not exist; it records `exists: false` and `sha256: null` rather than fabricating an artifact. Each verification gate has a stable id and one status: `pass`, `fail`, `blocked`, or `not-run`. A consumer MUST NOT describe an artifact as complete when a required gate is `fail`, `blocked`, or `not-run`.
+
 ## 9. DESIGN.md interoperability
 
 Company.md does not redefine visual tokens. If `links.design` is present:

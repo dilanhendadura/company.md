@@ -16,7 +16,7 @@ import { parseDocument } from './parser.js';
 import { CLASSIFICATIONS, MATURITY_LEVELS, PROFILE_ROLES, SPEC_VERSION } from './spec.js';
 import type { Classification, Finding, LintReport, MaturityLevel } from './types.js';
 
-const VERSION = '0.3.1';
+const VERSION = '0.3.2';
 const BOOLEAN_OPTIONS = new Set(['strict', 'with-design', 'force', 'allow-invalid', 'allow-draft', 'help', 'version']);
 
 async function main(argv: string[]): Promise<number> {
@@ -54,7 +54,7 @@ async function main(argv: string[]): Promise<number> {
       process.stdout.write(readProjectFile('SPEC.md'));
       return 0;
     case 'schema':
-      process.stdout.write(readProjectFile(path.join('schemas', 'frontmatter.schema.json')));
+      process.stdout.write(readProjectFile(schemaPath(parsed.positionals[0])));
       return 0;
     default:
       throw new Error(`Unknown command ${command}. Run companymd help.`);
@@ -313,6 +313,16 @@ function readProjectFile(relative: string): string {
   return content.endsWith('\n') ? content : `${content}\n`;
 }
 
+function schemaPath(name = 'frontmatter'): string {
+  const schemas = new Map([
+    ['frontmatter', 'frontmatter.schema.json'],
+    ['artifact-receipt', 'artifact-receipt.schema.json'],
+  ]);
+  const file = schemas.get(name);
+  if (!file) throw new Error(`Unknown schema ${name}; available: ${[...schemas.keys()].join(', ')}`);
+  return path.join('schemas', file);
+}
+
 function helpText(): string {
   return `Company.md ${VERSION}
 
@@ -328,7 +338,7 @@ Usage:
   companymd diff <before> <after>
   companymd eval [path] --baseline <file> --candidate <file> [--rubric <yaml>]
   companymd spec
-  companymd schema
+  companymd schema [frontmatter|artifact-receipt]
 
 Profiles: ${Object.keys(PROFILE_ROLES).join(', ')}
 Clearance: ${CLASSIFICATIONS.join(', ')}

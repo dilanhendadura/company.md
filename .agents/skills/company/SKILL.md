@@ -40,7 +40,7 @@ Stop on validation errors. Draft context requires explicit user awareness; do no
 
 Use the artifact capability appropriate to the requested output. Apply business meaning first, customer relevance second, offer and claim boundaries third, voice fourth, and visual rules last. Never invent prices, customer facts, proof, promises, availability, certifications, or design rules. Make assumptions visible and keep unresolved questions out of audience-facing copy unless the deliverable requires them.
 
-For a sales presentation or pitch deck, read [references/sales-deck.md](references/sales-deck.md). For a before/after validation request, read [references/evaluation.md](references/evaluation.md).
+For a sales presentation or pitch deck, read [references/sales-deck.md](references/sales-deck.md) and honor its binary-artifact completion contract. For a before/after validation request, read [references/evaluation.md](references/evaluation.md).
 
 ## Verify and hand off
 
@@ -52,6 +52,6 @@ Before returning the work:
 - distinguish verified facts, user-provided client facts, and assumptions;
 - preserve the context receipt beside the deliverable when the output is a file.
 
-For a file-based output that needs artifact-level traceability, also run `scripts/create-receipt.mjs` after generation. Pass `--root <repository-root>` so stored paths remain portable, plus the deliverable, selected profile and clearance, exact source files, client sources, and unresolved facts. Keep this sibling receipt with the artifact.
+For a file-based output that needs artifact-level traceability, also run `scripts/create-receipt.mjs` after generation. Pass `--root <repository-root>` so stored paths remain portable, plus the deliverable, selected profile and clearance, exact source files, client sources, generated intermediates, and unresolved facts. When a required artifact cannot be created, use `--expected-deliverable` and blocked verification gates instead of inventing a file or hand-writing a receipt. Keep the receipt beside the artifact path.
 
 Return the artifact first, followed by a concise Company check naming the profile, source files, unresolved facts, and any approval still required. Do not expose the generated context bundle as a second source of truth.

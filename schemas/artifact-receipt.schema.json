@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://company.md/schemas/0.1/artifact-receipt.schema.json",
+  "title": "Company.md artifact receipt v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "generatedAt",
+    "profile",
+    "clearance",
+    "deliverable",
+    "sources",
+    "clientSources",
+    "unresolved"
+  ],
+  "properties": {
+    "schema": { "const": "companymd/receipt/v1" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "profile": {
+      "enum": ["core", "customer", "commercial", "communications", "visual", "all"]
+    },
+    "clearance": {
+      "enum": ["public", "internal", "confidential", "restricted"]
+    },
+    "completion": {
+      "enum": ["complete", "failed", "blocked", "incomplete"]
+    },
+    "deliverable": { "$ref": "#/$defs/deliverableRecord" },
+    "sources": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/fileRecord" }
+    },
+    "intermediates": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/fileRecord" }
+    },
+    "clientSources": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "unresolved": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "verification": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "status"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._/-]{0,127}$"
+          },
+          "status": {
+            "enum": ["pass", "fail", "blocked", "not-run"]
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "dependentRequired": {
+    "completion": ["verification"],
+    "verification": ["completion"]
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "deliverable": {
+            "required": ["exists"],
+            "properties": { "exists": { "const": false } }
+          }
+        }
+      },
+      "then": {
+        "required": ["completion", "verification"],
+        "properties": {
+          "completion": { "enum": ["failed", "blocked"] },
+          "verification": {
+            "contains": {
+              "properties": { "status": { "enum": ["fail", "blocked"] } },
+              "required": ["status"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["completion"],
+        "properties": { "completion": { "const": "complete" } }
+      },
+      "then": {
+        "properties": {
+          "deliverable": {
+            "properties": { "exists": { "const": true } }
+          },
+          "verification": {
+            "minItems": 1,
+            "items": {
+              "properties": { "status": { "const": "pass" } },
+              "required": ["status"]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "deliverableRecord": {
+      "type": "object",
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "exists": { "type": "boolean" },
+        "sha256": {
+          "oneOf": [
+            { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "exists": { "const": true },
+            "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+          }
+        },
+        {
+          "required": ["exists"],
+          "properties": {
+            "exists": { "const": false },
+            "sha256": { "type": "null" }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "fileRecord": {
+      "type": "object",
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "exists": { "const": true },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true
+}
