@@ -9,9 +9,9 @@ Turn a plain-language request into a deliverable that follows the nearest applic
 
 ## Start or adopt a pack
 
-When the user asks to set up Company.md and no pack exists, read [references/authoring.md](references/authoring.md). Use the installed `companymd` CLI when available. Otherwise run the published package with `npx company.md`; before the first npm release, use `npx --yes github:dilanhendadura/company.md`. Initialize drafts, conduct the short owner interview, keep unknowns explicit, and lint the result. Do not activate documents or invent evidence on the user's behalf.
+When the user asks to set up Company.md and no pack exists, read [references/authoring.md](references/authoring.md). Resolve the absolute path of [scripts/run-companymd.mjs](scripts/run-companymd.mjs) beside this file and use that runner for every Company.md CLI call. The runner selects an explicit override, a workspace-local install, an installed executable, or the exact compatible GitHub release in that order. Never search npm cache directories or execute a cached `dist/cli.js` by path. Initialize drafts, conduct the short owner interview, keep unknowns explicit, and lint the result. Do not activate documents or invent evidence on the user's behalf.
 
-When business context already exists, run `companymd adopt <workspace> --format pretty` first. Map useful sources into the four-file minimum; do not rewrite or delete the originals.
+When business context already exists and the user is adopting Company.md, run the same skill runner with `adopt <workspace> --format pretty` first. Map useful sources into the four-file minimum; do not rewrite or delete the originals.
 
 ## Resolve the request
 
@@ -19,11 +19,11 @@ Identify the deliverable, audience, purpose, customer inputs, output format, and
 
 ## Load the narrowest context
 
-Locate the nearest `COMPANY.md`, then run its local Company.md CLI if available:
+Locate the nearest `COMPANY.md` inside the current workspace boundary, then invoke the skill runner from its absolute path. Treat the VCS root as the boundary when one exists; otherwise use the initial working directory. This is a data-isolation boundary: discovery commands must target only `.` or that VCS root, must never include `..` or an absolute parent path, and must not enumerate sibling workspaces even when they are readable. If no pack exists inside the boundary, state that governed company context is unavailable instead of borrowing another pack.
 
 ```bash
-companymd lint <pack> --format pretty
-companymd context <pack> --profile <profile> --output <temporary-context-file> --receipt <temporary-receipt-file>
+node <absolute-skill-directory>/scripts/run-companymd.mjs lint <pack> --format pretty
+node <absolute-skill-directory>/scripts/run-companymd.mjs context <pack> --profile <profile> --output <temporary-context-file> --receipt <temporary-receipt-file>
 ```
 
 Use the narrowest sufficient profile:

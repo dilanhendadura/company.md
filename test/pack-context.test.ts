@@ -61,6 +61,38 @@ test('visual context orders business context before DESIGN.md', () => {
   assert.ok(result.sources.every((source) => /^[a-f0-9]{64}$/.test(source.sha256)));
 });
 
+test('complete product overlays can extend a base enterprise pack', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'companymd-overlay-'));
+  const base = path.join(temp, 'global');
+  const overlay = path.join(temp, 'product');
+  fs.cpSync(path.resolve('examples/northstar'), base, { recursive: true });
+  fs.cpSync(path.resolve('examples/northstar'), overlay, { recursive: true });
+
+  for (const filename of ['COMPANY.md', 'CUSTOMER.md', 'OFFER.md', 'VOICE.md']) {
+    const file = path.join(overlay, filename);
+    const content = fs.readFileSync(file, 'utf8')
+      .replaceAll('northstar-cloud', 'northstar-cloud.product')
+      .replace('claims:', `extends: ../global/${filename}\nclaims:`);
+    fs.writeFileSync(file, content, 'utf8');
+  }
+
+  const report = lintPack(overlay, { now: new Date('2026-08-23T00:00:00Z') });
+  assert.equal(report.summary.errors, 0);
+
+  const context = createContext(overlay, { profile: 'communications', clearance: 'internal' });
+  assert.deepEqual(context.files, [
+    '../global/COMPANY.md',
+    'COMPANY.md',
+    '../global/CUSTOMER.md',
+    'CUSTOMER.md',
+    '../global/OFFER.md',
+    'OFFER.md',
+    '../global/VOICE.md',
+    'VOICE.md',
+  ]);
+  assert.match(context.markdown, /# Source: \.\.\/global\/COMPANY\.md \(inherited base\)/);
+});
+
 test('writes a machine-readable context receipt', () => {
   const result = createContext(path.resolve('examples/northstar'), { profile: 'visual', clearance: 'internal' });
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'companymd-receipt-'));

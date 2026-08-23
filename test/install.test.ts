@@ -12,6 +12,7 @@ test('installs a repository-scoped Codex skill', () => {
   assert.ok(result.files.includes('.agents/skills/company/SKILL.md'));
   assert.ok(result.files.includes('.agents/skills/company/agents/openai.yaml'));
   assert.ok(result.files.includes('.agents/skills/company/scripts/create-receipt.mjs'));
+  assert.ok(result.files.includes('.agents/skills/company/scripts/run-companymd.mjs'));
   assert.match(fs.readFileSync(path.join(result.directory, 'SKILL.md'), 'utf8'), /name: company/);
 });
 

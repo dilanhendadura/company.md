@@ -17,6 +17,7 @@ function run(command, args, options = {}) {
     encoding: "utf8",
     shell: options.shell ?? false,
     stdio: options.quiet ? "pipe" : "inherit",
+    env: options.env ?? process.env,
   });
   if (result.status !== 0) {
     const details = [result.stdout, result.stderr].filter(Boolean).join("\n");
@@ -51,6 +52,8 @@ try {
   const shell = process.platform === "win32";
 
   run(executable, ["help"], { cwd: consumer, quiet: true, shell });
+  run(executable, ["--help"], { cwd: consumer, quiet: true, shell });
+  run(executable, ["-h"], { cwd: consumer, quiet: true, shell });
   run(dottedExecutable, ["help"], { cwd: consumer, quiet: true, shell });
   run(
     executable,
@@ -97,6 +100,15 @@ try {
     quiet: true,
     shell,
   });
+  const skillRunner = join(pack, ".agents", "skills", "company", "scripts", "run-companymd.mjs");
+  const receiptTool = join(pack, ".agents", "skills", "company", "scripts", "create-receipt.mjs");
+  const packagedCli = join(consumer, "node_modules", "company.md", "dist", "cli.js");
+  run(process.execPath, [skillRunner, "--version"], {
+    cwd: pack,
+    quiet: true,
+    env: { ...process.env, COMPANYMD_CLI: packagedCli },
+  });
+  run(process.execPath, [receiptTool, "--help"], { cwd: pack, quiet: true });
 
   for (const path of [
     join(pack, "COMPANY.md"),
@@ -105,6 +117,8 @@ try {
     join(pack, "VOICE.md"),
     join(pack, "DESIGN.md"),
     join(pack, ".agents", "skills", "company", "SKILL.md"),
+    skillRunner,
+    receiptTool,
     join(consumer, "context.md"),
     join(consumer, "context.receipt.json"),
   ]) {

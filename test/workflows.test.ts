@@ -38,6 +38,30 @@ test('adoption inventory maps existing context without rewriting it', () => {
   assert.equal(fs.existsSync(path.join(target, 'COMPANY.md')), false);
 });
 
+test('adoption inventory ignores nested Claude worktrees and distant path noise', () => {
+  const target = fs.mkdtempSync(path.join(os.tmpdir(), 'companymd-adopt-worktrees-'));
+  fs.mkdirSync(path.join(target, '.claude', 'worktrees', 'export-branding', 'appweb'), { recursive: true });
+  fs.mkdirSync(path.join(target, 'export-branding', 'appweb'), { recursive: true });
+  fs.writeFileSync(
+    path.join(target, '.claude', 'worktrees', 'export-branding', 'appweb', 'README.md'),
+    '# Duplicate checkout\n',
+    'utf8',
+  );
+  fs.writeFileSync(path.join(target, 'export-branding', 'appweb', 'README.md'), '# Application\n', 'utf8');
+  fs.mkdirSync(path.join(target, '.agents', 'skills', 'brand', 'references'), { recursive: true });
+  fs.writeFileSync(
+    path.join(target, '.agents', 'skills', 'brand', 'references', 'company-positioning.md'),
+    '# Skill reference, not company context\n',
+    'utf8',
+  );
+
+  const report = inspectForAdoption(target);
+
+  assert.equal(report.candidates.length, 1);
+  assert.equal(report.candidates[0]?.file, path.join('export-branding', 'appweb', 'README.md'));
+  assert.deepEqual(report.candidates[0]?.targets, ['company']);
+});
+
 test('before/after eval reports fixed constraints without a truth score', () => {
   const report = evaluateBeforeAfter(
     'examples/northstar',
