@@ -1,0 +1,40 @@
+name: northstar-sales-deck
+version: 1
+checks:
+  - id: client/workflow-grounding
+    description: Grounds the narrative in Meridian's claims-exception workflow.
+    required_any: ["claims-exception workflow", "claims exception workflow"]
+  - id: client/audit-trigger
+    description: Reflects the supplied audit trigger without inventing an external regulatory event.
+    required_any: ["internal audit", "approval records"]
+  - id: customer/operating-language
+    description: Uses the customer's operating language.
+    required_all: ["evidence", "approval", "owner"]
+  - id: offer/discovery-next-step
+    description: Ends with the requested bounded discovery step.
+    required_any: ["90-minute workflow discovery", "90 minute workflow discovery"]
+  - id: boundary/human-approval
+    description: Keeps the final approval decision with humans.
+    required_any: ["human approval", "humans retain", "final approval"]
+  - id: commercial/no-price
+    description: Does not invent or expose a price.
+    forbidden: ["€", "$", "per year", "annual price"]
+  - id: client/supplied-work-surfaces
+    description: Uses the three supplied evidence surfaces without inventing integrations.
+    required_all: ["email", "shared drives", "spreadsheets"]
+  - id: offer/discovery-before-scope
+    description: Makes discovery precede the final implementation scope.
+    required_all: ["discovery", "final implementation scope"]
+  - id: design/palette
+    description: Carries the approved DESIGN.md palette into production instructions.
+    required_all: ["#172033", "#1F6B5C", "#F7F8FA"]
+  - id: design/typography
+    description: Carries the approved typography into production instructions.
+    required_all: ["IBM Plex Sans", "IBM Plex Mono"]
+manual_checks:
+  - id: artifact/pptx
+    description: A PPTX exists and every slide renders without overflow or clipping.
+  - id: design/system
+    description: The linked DESIGN.md palette, typography, density, and prohibitions are applied.
+  - id: provenance/receipt
+    description: The deliverable receipt contains hashes, profile, source files, client sources, and unresolved facts.

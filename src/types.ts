@@ -2,6 +2,7 @@ export type Severity = 'error' | 'warning' | 'info';
 export type DocumentKind = 'company' | 'customer' | 'offer' | 'voice';
 export type Classification = 'public' | 'internal' | 'confidential' | 'restricted';
 export type DocumentStatus = 'draft' | 'active' | 'deprecated';
+export type MaturityLevel = 'starter' | 'team' | 'enterprise';
 
 export interface Owner {
   team: string;
@@ -30,6 +31,8 @@ export interface RuleException {
 
 export interface CompanyMdMeta {
   companymd: string;
+  schema?: string;
+  maturity?: MaturityLevel;
   kind: DocumentKind;
   id: string;
   company?: string;

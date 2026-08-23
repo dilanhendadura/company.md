@@ -16,6 +16,8 @@
   ],
   "properties": {
     "companymd": { "const": "0.1" },
+    "schema": { "const": "companymd/context/v1" },
+    "maturity": { "enum": ["starter", "team", "enterprise"] },
     "kind": { "enum": ["company", "customer", "offer", "voice"] },
     "id": {
       "type": "string",

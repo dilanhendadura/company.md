@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/dilanhendadura/company.md/security/advisories/new
+    about: Report vulnerabilities privately. Never include sensitive context in a public issue.

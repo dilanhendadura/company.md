@@ -1,5 +1,7 @@
 ---
 companymd: "0.1"
+schema: companymd/context/v1
+maturity: enterprise
 kind: customer
 id: northstar-cloud.customer.regulated-ops
 company: northstar-cloud

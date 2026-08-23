@@ -1,7 +1,15 @@
 {
   "name": "company.md",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "An open, agent-readable company context standard for enterprise AI workspaces.",
+  "homepage": "https://github.com/dilanhendadura/company.md#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dilanhendadura/company.md.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dilanhendadura/company.md/issues"
+  },
   "type": "module",
   "license": "Apache-2.0",
   "engines": {
@@ -23,11 +31,13 @@
   },
   "files": [
     "dist",
+    ".agents/skills/company",
     "templates",
     "schemas",
     "docs",
     "integrations",
     "examples/northstar",
+    "evals",
     "SPEC.md",
     "README.md",
     "CHANGELOG.md",

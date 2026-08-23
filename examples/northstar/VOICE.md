@@ -1,5 +1,7 @@
 ---
 companymd: "0.1"
+schema: companymd/context/v1
+maturity: enterprise
 kind: voice
 id: northstar-cloud.voice.primary
 company: northstar-cloud

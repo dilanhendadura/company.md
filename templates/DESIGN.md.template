@@ -1,6 +1,6 @@
 ---
 version: alpha
-name: "{{COMPANY_NAME}} visual identity"
+name: {{DESIGN_NAME_YAML}}
 description: "Visual context linked from COMPANY.md"
 colors:
   primary: "#1F2937"

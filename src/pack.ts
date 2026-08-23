@@ -98,6 +98,7 @@ export function lintPack(input: string, options: LintPackOptions = {}): LintRepo
 
   const fileReports: FileReport[] = [];
   const rootId = typeof pack.company.meta.id === 'string' ? pack.company.meta.id : undefined;
+  const rootMaturity = typeof pack.company.meta.maturity === 'string' ? pack.company.meta.maturity : undefined;
   const documentIds = new Map<string, string>();
 
   for (const loaded of pack.documents) {
@@ -143,6 +144,15 @@ export function lintPack(input: string, options: LintPackOptions = {}): LintRepo
         file: parsed.path,
         path: 'company',
         message: `company must reference root id ${rootId}`,
+      });
+    }
+    if (rootMaturity && typeof parsed.meta.maturity === 'string' && parsed.meta.maturity !== rootMaturity) {
+      findings.push({
+        ruleId: 'pack/maturity-mismatch',
+        severity: 'error',
+        file: parsed.path,
+        path: 'maturity',
+        message: `Pack documents must use root maturity ${rootMaturity}; found ${parsed.meta.maturity}`,
       });
     }
     fileReports.push({ file: parsed.path, kind: loaded.role, findings });

@@ -7,6 +7,8 @@ Rule IDs are stable machine-facing identifiers. Messages may improve without a f
 | Rule | Default severity | Meaning |
 | --- | --- | --- |
 | `metadata/spec-version` | error | Unsupported or unquoted Company.md version |
+| `metadata/schema` | warning/error | Missing dialect namespace, or a competing `COMPANY.md` dialect |
+| `metadata/maturity` | info/error | Missing maturity (team rules assumed), or an invalid maturity level |
 | `metadata/kind` | error | Missing or invalid document kind |
 | `metadata/link-kind` | error | Linked file kind does not match its role |
 | `metadata/id` | error | Invalid stable document id |
@@ -26,6 +28,7 @@ Rule IDs are stable machine-facing identifiers. Messages may improve without a f
 | --- | --- | --- |
 | `governance/classification` | error | Missing or invalid classification |
 | `governance/owner` | error | No accountable owner team |
+| `governance/owner-contact` | info/warning/error | Missing escalation contact; severity follows maturity |
 | `governance/placeholder-contact` | warning | Initializer contact has not been replaced |
 | `governance/review` | error | Missing or invalid review metadata |
 | `governance/review-order` | error | Next review precedes last review |
@@ -66,9 +69,12 @@ An active, approved, non-expired exception can convert only the exact warning na
 | `pack/load` | error | Pack, link, YAML, or inheritance chain cannot load |
 | `pack/duplicate-id` | error | Two pack documents share an id |
 | `pack/company-reference` | error | Companion references a different root id |
+| `pack/maturity-mismatch` | error | A companion declares a different validation maturity from the root |
 | `pack/deprecated-document` | error | Pack topology still links deprecated content |
 | `design.md/parse` | error | Linked DESIGN.md cannot be parsed |
 | `design.md/validation` | delegated | Finding returned by `@google/design.md` |
 | `security/possible-secret` | error | A high-confidence credential pattern is present |
 
 Secret detection is intentionally small and low-noise. It does not replace repository secret scanning or data-loss prevention.
+
+In `starter`, placeholder content and example contacts are informational. `team` uses the default severities above. `enterprise` requires owner contacts. Maturity never downgrades structural, topology, classification, evidence, or security errors.

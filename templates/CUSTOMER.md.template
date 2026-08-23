@@ -1,14 +1,16 @@
 ---
 companymd: "0.1"
+schema: {{SCHEMA_ID}}
+maturity: {{MATURITY}}
 kind: customer
 id: {{COMPANY_ID}}.customer.primary
 company: {{COMPANY_ID}}
-name: "{{COMPANY_NAME}} primary customer"
+name: {{CUSTOMER_NAME_YAML}}
 status: draft
 classification: {{CLASSIFICATION}}
 owners:
-  - team: "{{OWNER_TEAM}}"
-    contact: "{{OWNER_CONTACT}}"
+  - team: {{OWNER_TEAM_YAML}}
+    contact: {{OWNER_CONTACT_YAML}}
 review:
   last_reviewed: "{{LAST_REVIEWED}}"
   next_review: "{{NEXT_REVIEW}}"

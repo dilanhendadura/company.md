@@ -4,6 +4,8 @@ This playbook is for a human owner working with a coding agent to create or refr
 
 ## Before the interview
 
+Choose the adoption level before authoring: use `starter` for a first guided draft, `team` for shared operational use, and `enterprise` only when owners and escalation paths are ready for strict validation. If useful sources already exist, run `companymd adopt <workspace>` first and preserve every source file.
+
 Give the agent read access only to approved sources needed for the pack. Prefer a source list over a broad drive mount. Useful inputs include:
 
 - current strategy and operating-model decisions;
@@ -102,3 +104,4 @@ An agent should flag contradictions instead of averaging them. The source with t
 - Owners reviewed the scopes for which they are accountable.
 - `companymd lint --strict` passes or every accepted exception is documented and time-bounded.
 - A human with the right decision authority changes status to `active`.
+- The declared `schema` is `companymd/context/v1`; a competing `COMPANY.md` dialect was migrated through an explicit adapter rather than overwritten.

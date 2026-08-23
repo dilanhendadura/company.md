@@ -3,16 +3,20 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createContext, writeContext } from './context.js';
+import { inspectForAdoption } from './adopt.js';
+import { createPackFromUrl } from './bootstrap.js';
+import { createContext, writeContext, writeContextReceipt } from './context.js';
 import { diffPacks } from './diff.js';
+import { evaluateBeforeAfter } from './eval.js';
 import { initPack } from './init.js';
+import { installAgentIntegration } from './install.js';
 import { lintDocument } from './lint.js';
 import { lintPack } from './pack.js';
 import { parseDocument } from './parser.js';
-import { CLASSIFICATIONS, PROFILE_ROLES, SPEC_VERSION } from './spec.js';
-import type { Classification, Finding, LintReport } from './types.js';
+import { CLASSIFICATIONS, MATURITY_LEVELS, PROFILE_ROLES, SPEC_VERSION } from './spec.js';
+import type { Classification, Finding, LintReport, MaturityLevel } from './types.js';
 
-const VERSION = '0.1.0';
+const VERSION = '0.2.0';
 const BOOLEAN_OPTIONS = new Set(['strict', 'with-design', 'force', 'allow-invalid', 'allow-draft', 'help', 'version']);
 
 async function main(argv: string[]): Promise<number> {
@@ -31,12 +35,21 @@ async function main(argv: string[]): Promise<number> {
   switch (command) {
     case 'init':
       return runInit(parsed);
+    case 'create':
+    case 'from-url':
+      return runCreate(parsed);
+    case 'adopt':
+      return runAdopt(parsed);
+    case 'install':
+      return runInstall(parsed);
     case 'lint':
       return runLint(parsed);
     case 'context':
       return runContext(parsed);
     case 'diff':
       return runDiff(parsed);
+    case 'eval':
+      return runEval(parsed);
     case 'spec':
       process.stdout.write(readProjectFile('SPEC.md'));
       return 0;
@@ -46,6 +59,55 @@ async function main(argv: string[]): Promise<number> {
     default:
       throw new Error(`Unknown command ${command}. Run companymd help.`);
   }
+}
+
+function runInstall(args: ParsedArgs): number {
+  const agent = args.options.get('agent') ?? 'codex';
+  if (agent !== 'codex') throw new Error('--agent must be codex');
+  const result = installAgentIntegration(args.positionals[0] ?? '.', {
+    agent,
+    force: args.flags.has('force'),
+  });
+  process.stdout.write(`${JSON.stringify({ ok: true, ...result }, null, 2)}\n`);
+  return 0;
+}
+
+async function runCreate(args: ParsedArgs): Promise<number> {
+  const source = args.positionals[0];
+  if (!source) throw new Error('create requires <public-url>');
+  const classification = (args.options.get('classification') ?? 'internal') as Classification;
+  if (!CLASSIFICATIONS.includes(classification)) throw new Error(`--classification must be one of: ${CLASSIFICATIONS.join(', ')}`);
+  const maturity = (args.options.get('mode') ?? args.options.get('maturity') ?? 'starter') as MaturityLevel;
+  if (!MATURITY_LEVELS.includes(maturity)) throw new Error(`--mode must be one of: ${MATURITY_LEVELS.join(', ')}`);
+  const name = args.options.get('name');
+  const id = args.options.get('id');
+  const owner = args.options.get('owner');
+  const contact = args.options.get('contact');
+  const result = await createPackFromUrl(source, args.positionals[1] ?? '.', {
+    ...(name ? { name } : {}),
+    ...(id ? { id } : {}),
+    ...(owner ? { owner } : {}),
+    ...(contact ? { contact } : {}),
+    classification,
+    maturity,
+    withDesign: args.flags.has('with-design'),
+    force: args.flags.has('force'),
+  });
+  process.stdout.write(`${JSON.stringify({ ok: true, ...result }, null, 2)}\n`);
+  return 0;
+}
+
+function runAdopt(args: ParsedArgs): number {
+  const report = inspectForAdoption(args.positionals[0] ?? '.');
+  const format = args.options.get('format') ?? 'json';
+  let content: string;
+  if (format === 'json') content = `${JSON.stringify(report, null, 2)}\n`;
+  else if (format === 'pretty') content = formatAdoptionReport(report);
+  else throw new Error('--format must be json or pretty');
+  const output = args.options.get('output');
+  if (output) fs.writeFileSync(path.resolve(output), content, 'utf8');
+  else process.stdout.write(content);
+  return report.collision ? 1 : 0;
 }
 
 function runInit(args: ParsedArgs): number {
@@ -58,12 +120,17 @@ function runInit(args: ParsedArgs): number {
   const id = args.options.get('id');
   const owner = args.options.get('owner');
   const contact = args.options.get('contact');
+  const maturity = (args.options.get('mode') ?? args.options.get('maturity') ?? 'starter') as MaturityLevel;
+  if (!MATURITY_LEVELS.includes(maturity)) {
+    throw new Error(`--mode must be one of: ${MATURITY_LEVELS.join(', ')}`);
+  }
   const result = initPack(args.positionals[0] ?? '.', {
     name,
     ...(id ? { id } : {}),
     ...(owner ? { owner } : {}),
     ...(contact ? { contact } : {}),
     classification,
+    maturity,
     withDesign: args.flags.has('with-design'),
     force: args.flags.has('force'),
   });
@@ -98,10 +165,18 @@ function runContext(args: ParsedArgs): number {
     allowDraft: args.flags.has('allow-draft'),
   });
   const output = args.options.get('output');
+  const receipt = args.options.get('receipt');
   if (output) {
     writeContext(result, output);
-    process.stdout.write(`${JSON.stringify({ ok: true, output: path.resolve(output), files: result.files }, null, 2)}\n`);
+    if (receipt) writeContextReceipt(result, receipt);
+    process.stdout.write(`${JSON.stringify({
+      ok: true,
+      output: path.resolve(output),
+      ...(receipt ? { receipt: path.resolve(receipt) } : {}),
+      files: result.files,
+    }, null, 2)}\n`);
   } else {
+    if (receipt) writeContextReceipt(result, receipt);
     process.stdout.write(result.markdown);
   }
   return 0;
@@ -114,6 +189,18 @@ function runDiff(args: ParsedArgs): number {
   const report = diffPacks(before, after);
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
   return report.regression ? 1 : 0;
+}
+
+function runEval(args: ParsedArgs): number {
+  const baseline = args.options.get('baseline');
+  const candidate = args.options.get('candidate');
+  if (!baseline || !candidate) throw new Error('eval requires --baseline <file> and --candidate <file>');
+  const report = evaluateBeforeAfter(args.positionals[0] ?? '.', baseline, candidate, args.options.get('rubric'));
+  const format = args.options.get('format') ?? 'json';
+  if (format === 'json') process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+  else if (format === 'pretty') process.stdout.write(formatEvalReport(report));
+  else throw new Error('--format must be json or pretty');
+  return report.regressions.length > 0 || !report.candidate.passed ? 1 : 0;
 }
 
 function lintStdin(): LintReport {
@@ -161,6 +248,34 @@ function formatLintReport(report: LintReport): string {
   return `${lines.join('\n')}\n`;
 }
 
+function formatAdoptionReport(report: ReturnType<typeof inspectForAdoption>): string {
+  const lines = [
+    `Adoption inventory: ${report.root}`,
+    `Existing Company.md pack: ${report.existingPack ? 'yes' : 'no'}`,
+  ];
+  if (report.dialect) lines.push(`Dialect: ${report.dialect}`);
+  if (report.collision) lines.push(`COLLISION: ${report.collision}`);
+  lines.push('', 'Candidates:');
+  if (report.candidates.length === 0) lines.push('- none');
+  for (const candidate of report.candidates) lines.push(`- ${candidate.file} → ${candidate.targets.join(', ')} (${candidate.reason})`);
+  lines.push('', 'Recommended order:', ...report.recommendedOrder.map((item, index) => `${index + 1}. ${item}`));
+  return `${lines.join('\n')}\n`;
+}
+
+function formatEvalReport(report: ReturnType<typeof evaluateBeforeAfter>): string {
+  return [
+    `Outcome: ${report.outcome}`,
+    `Baseline: ${report.baseline.passed ? 'conformant' : 'non-conformant'}`,
+    `Candidate: ${report.candidate.passed ? 'conformant' : 'non-conformant'}`,
+    `Fixed: ${report.fixed.length ? report.fixed.join(', ') : 'none'}`,
+    `Regressions: ${report.regressions.length ? report.regressions.join(', ') : 'none'}`,
+    `Unchanged failures: ${report.unchangedFailures.length ? report.unchangedFailures.join(', ') : 'none'}`,
+    '',
+    report.note,
+    '',
+  ].join('\n');
+}
+
 function parseArgs(argv: string[]): ParsedArgs {
   const positionals: string[] = [];
   const options = new Map<string, string>();
@@ -204,10 +319,14 @@ function helpText(): string {
 Agent-readable company context for enterprise AI workspaces.
 
 Usage:
-  companymd init [directory] --name <name> [--with-design]
+  companymd init [directory] --name <name> [--mode starter|team|enterprise]
+  companymd create <public-url> [directory] [--name <name>] [--with-design]
+  companymd adopt [directory] [--format json|pretty] [--output <file>]
+  companymd install [directory] [--agent codex]
   companymd lint [path|-] [--format json|pretty] [--strict]
-  companymd context [path] [--profile <profile>] [--clearance <level>] [--output <file>]
+  companymd context [path] [--profile <profile>] [--clearance <level>] [--output <file>] [--receipt <file>]
   companymd diff <before> <after>
+  companymd eval [path] --baseline <file> --candidate <file> [--rubric <yaml>]
   companymd spec
   companymd schema
 
@@ -219,12 +338,14 @@ Common init options:
   --owner <team>            Accountable team
   --contact <contact>       Owner email or directory handle
   --classification <level> Defaults to internal
+  --mode <level>            starter, team, or enterprise; defaults to starter
   --with-design             Add and link a DESIGN.md file
   --force                   Replace colliding framework files
 
 Lint exits 1 for errors; --strict also exits 1 for warnings.
 JSON is the default lint format so coding agents and CI can act on findings.
 Draft documents require an explicit --allow-draft when creating context.
+Install adds the repository-scoped $company skill without changing Company.md sources.
 `;
 }
 

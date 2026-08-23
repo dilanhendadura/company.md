@@ -11,7 +11,9 @@ import {
   CLASSIFICATIONS,
   CONVENTIONAL_FILENAMES,
   KINDS,
+  MATURITY_LEVELS,
   REQUIRED_SECTIONS,
+  SCHEMA_ID,
   SPEC_VERSION,
   STATUSES,
   normalizeHeading,
@@ -28,13 +30,16 @@ export function lintDocument(document: ParsedDocument, options: LintDocumentOpti
   const now = options.now ?? new Date();
   const meta = document.meta;
   const relativeFile = document.path;
+  const maturity = typeof meta.maturity === 'string' && MATURITY_LEVELS.includes(meta.maturity as (typeof MATURITY_LEVELS)[number])
+    ? meta.maturity as (typeof MATURITY_LEVELS)[number]
+    : 'team';
   const add = (
     ruleId: string,
     severity: Severity,
     message: string,
     extra: Partial<Pick<Finding, 'path' | 'line' | 'suggestion'>> = {},
   ): void => {
-    findings.push({ ruleId, severity, file: relativeFile, message, ...extra });
+    findings.push({ ruleId, severity: severityForMaturity(ruleId, severity, maturity), file: relativeFile, message, ...extra });
   };
 
   if (String(meta.companymd ?? '') !== SPEC_VERSION) {
@@ -44,6 +49,28 @@ export function lintDocument(document: ParsedDocument, options: LintDocumentOpti
       `companymd must be the quoted string "${SPEC_VERSION}"`,
       { path: 'companymd' },
     );
+  }
+
+  if (meta.schema === undefined) {
+    add(
+      'metadata/schema',
+      'warning',
+      `schema is missing; add schema: ${SCHEMA_ID} to distinguish this dialect from other COMPANY.md formats`,
+      { path: 'schema' },
+    );
+  } else if (meta.schema !== SCHEMA_ID) {
+    add(
+      'metadata/schema',
+      'error',
+      `Unsupported COMPANY.md dialect ${String(meta.schema)}; this tool expects ${SCHEMA_ID}`,
+      { path: 'schema', suggestion: 'Use an explicit adapter or migration instead of interpreting another dialect as Company.md context.' },
+    );
+  }
+
+  if (meta.maturity === undefined) {
+    add('metadata/maturity', 'info', 'maturity is not declared; team validation rules are assumed', { path: 'maturity' });
+  } else if (typeof meta.maturity !== 'string' || !MATURITY_LEVELS.includes(meta.maturity as (typeof MATURITY_LEVELS)[number])) {
+    add('metadata/maturity', 'error', `maturity must be one of: ${MATURITY_LEVELS.join(', ')}`, { path: 'maturity' });
   }
 
   const kind = typeof meta.kind === 'string' && KINDS.includes(meta.kind as DocumentKind)
@@ -83,7 +110,7 @@ export function lintDocument(document: ParsedDocument, options: LintDocumentOpti
     );
   }
 
-  lintOwners(meta.owners, add);
+  lintOwners(meta.owners, maturity, add);
   lintReview(meta.review, now, add);
   lintScope(meta.scope, add);
   lintExceptions(meta.exceptions, now, add);
@@ -102,6 +129,7 @@ export function lintDocument(document: ParsedDocument, options: LintDocumentOpti
 
 function lintOwners(
   value: unknown,
+  maturity: (typeof MATURITY_LEVELS)[number],
   add: AddFinding,
 ): void {
   if (!Array.isArray(value) || value.length === 0) {
@@ -111,7 +139,14 @@ function lintOwners(
   value.forEach((owner, index) => {
     if (!isRecord(owner) || typeof owner.team !== 'string' || owner.team.trim() === '') {
       add('governance/owner', 'error', 'Each owner needs a non-empty team', { path: `owners[${index}].team` });
-    } else if (typeof owner.contact === 'string' && /@example\.com$/i.test(owner.contact.trim())) {
+    } else if (typeof owner.contact !== 'string' || owner.contact.trim() === '') {
+      add(
+        'governance/owner-contact',
+        maturity === 'enterprise' ? 'error' : maturity === 'team' ? 'warning' : 'info',
+        'Add a group contact or directory handle so agents can escalate uncertainty',
+        { path: `owners[${index}].contact` },
+      );
+    } else if (/@example\.com$/i.test(owner.contact.trim())) {
       add('governance/placeholder-contact', 'warning', 'Replace the example.com owner contact before activation', { path: `owners[${index}].contact` });
     }
   });
@@ -337,6 +372,21 @@ type AddFinding = (
   message: string,
   extra?: Partial<Pick<Finding, 'path' | 'line' | 'suggestion'>>,
 ) => void;
+
+function severityForMaturity(
+  ruleId: string,
+  severity: Severity,
+  maturity: (typeof MATURITY_LEVELS)[number],
+): Severity {
+  if (
+    severity === 'warning'
+    && maturity === 'starter'
+    && ['content/placeholder', 'governance/placeholder-contact', 'metadata/schema'].includes(ruleId)
+  ) {
+    return 'info';
+  }
+  return severity;
+}
 
 function applyExceptions(findings: Finding[], value: unknown, now: Date): Finding[] {
   if (!Array.isArray(value)) return findings;

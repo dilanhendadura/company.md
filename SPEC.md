@@ -50,6 +50,8 @@ Unknown front-matter keys and extra Markdown sections MUST be preserved by consu
 
 ```yaml
 companymd: "0.1"
+schema: companymd/context/v1
+maturity: starter | team | enterprise
 kind: company | customer | offer | voice
 id: stable-lowercase-id
 company: root-company-id       # required except on the root company document
@@ -78,10 +80,20 @@ claims: []
 ### 4.1 Identity
 
 - `companymd` MUST be the quoted string `"0.1"`. Quoting prevents YAML parsers from converting the version to a number.
+- `schema` SHOULD be `companymd/context/v1`. Consumers accept an absent value for `0.1` compatibility, but MUST fail clearly when another `COMPANY.md` dialect is declared rather than interpreting it as this format.
+- `maturity` SHOULD be `starter`, `team`, or `enterprise` and controls validation policy, not the truth or quality of the content. When absent, consumers use `team` behavior.
 - `kind` MUST match the document's role.
 - `id` MUST be stable across renames. It uses lowercase letters, digits, `.`, `_`, and `-`, has 2–128 characters, and begins with a letter or digit.
 - `company` MUST equal the root company `id` in every companion.
 - `name` is a human label and MAY change without changing `id`.
+
+### 4.1.1 Maturity levels
+
+- `starter` minimizes first-run friction. Placeholders and temporary example contacts are informational while the pack remains a draft.
+- `team` makes collaboration, ownership, and freshness gaps visible as warnings.
+- `enterprise` requires durable escalation contacts and is intended for strict review and CI.
+
+Maturity MUST NOT weaken structural, classification, secret, topology, or prohibited-claim errors. Moving to a stricter level is a governance rollout decision; it does not certify the content as true.
 
 ### 4.2 Lifecycle
 
@@ -232,7 +244,7 @@ Consumers SHOULD load the narrowest profile that can answer the task:
 
 Within each role, bases appear before overlays. `DESIGN.md` appears last so visual implementation is constrained by company meaning, customer needs, offer truth, and voice before styling begins.
 
-Generated bundles MUST identify their profile, clearance, generation time, and source files. Generated bundles are disposable artifacts and MUST NOT become a second source of truth.
+Generated bundles MUST identify their profile, clearance, generation time, and source files. A consumer MAY emit a `companymd/context-receipt/v1` sidecar containing source paths and SHA-256 digests. Generated bundles and receipts are disposable artifacts and MUST NOT become a second source of truth.
 
 ## 9. DESIGN.md interoperability
 
@@ -285,4 +297,12 @@ Agents MAY draft changes but MUST NOT self-approve a transition to active status
 
 Version `0.1` allows organization-specific front-matter keys and additional prose sections. Extension keys SHOULD use a distinctive namespace such as `x-acme-legal`. Consumers MUST preserve unknown data but MAY ignore it.
 
+For migration only, a consumer MAY accept an older `0.1` pack that lacks `schema` or `maturity`, but it MUST warn, assume `team` validation, and MUST NOT overwrite an existing `COMPANY.md` until its dialect is confirmed.
+
 Breaking changes to required fields, semantics, or resolution behavior require a new `companymd` version. Adding optional metadata or lint warnings does not necessarily require a version change.
+
+## 13. Agent skills and behavioral evaluation
+
+An integration MAY expose the workflow as an Agent Skill named `company`. The skill MUST validate the pack, select the narrowest sufficient context profile, keep request-specific customer facts separate from durable company truth, and preserve human approval boundaries.
+
+Before/after evaluation SHOULD run the same task with the same model, tools, attachments, and output constraints. Reports SHOULD expose criterion-level passes, fixed failures, regressions, and unresolved failures. They MUST NOT present structural or textual conformance as a truth score, factual certification, or business-outcome prediction.

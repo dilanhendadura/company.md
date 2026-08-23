@@ -1,5 +1,7 @@
 ---
 companymd: "0.1"
+schema: companymd/context/v1
+maturity: enterprise
 kind: offer
 id: northstar-cloud.offer.platform
 company: northstar-cloud

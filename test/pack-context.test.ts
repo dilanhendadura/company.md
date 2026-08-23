@@ -3,11 +3,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { createContext } from '../src/context.js';
+import { createContext, writeContextReceipt } from '../src/context.js';
 import { initPack } from '../src/init.js';
 import { lintPack } from '../src/pack.js';
 
-test('initializes and validates a five-file draft pack', () => {
+test('initializes a starter pack without a wall of warnings', () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'companymd-init-'));
   const result = initPack(temp, {
     name: 'Example Holdings',
@@ -19,7 +19,36 @@ test('initializes and validates a five-file draft pack', () => {
   assert.deepEqual(result.files, ['COMPANY.md', 'CUSTOMER.md', 'OFFER.md', 'VOICE.md', 'DESIGN.md']);
   const report = lintPack(temp, { now: new Date('2026-08-23T00:00:00Z') });
   assert.equal(report.summary.errors, 0);
-  assert.ok(report.summary.warnings > 0, 'draft placeholders should remain visible');
+  assert.equal(report.summary.warnings, 1, 'only the external DESIGN.md placeholder warning remains');
+  assert.ok(report.summary.infos > 0, 'starter guidance should remain visible as information');
+});
+
+test('enterprise mode treats a missing owner contact as an error', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'companymd-enterprise-'));
+  initPack(temp, {
+    name: 'Enterprise Example',
+    owner: 'Strategy',
+    contact: '',
+    maturity: 'enterprise',
+    now: new Date('2026-08-23T00:00:00Z'),
+  });
+  const companyPath = path.join(temp, 'COMPANY.md');
+  fs.writeFileSync(companyPath, fs.readFileSync(companyPath, 'utf8').replace('    contact: "context-owner@example.com"\n', ''), 'utf8');
+  const report = lintPack(temp, { now: new Date('2026-08-23T00:00:00Z') });
+  assert.ok(report.findings.some((finding) => finding.ruleId === 'governance/owner-contact' && finding.severity === 'error'));
+});
+
+test('detects a competing COMPANY.md dialect explicitly', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'companymd-dialect-'));
+  initPack(temp, { name: 'Dialect Example', now: new Date('2026-08-23T00:00:00Z') });
+  const companyPath = path.join(temp, 'COMPANY.md');
+  fs.writeFileSync(
+    companyPath,
+    fs.readFileSync(companyPath, 'utf8').replace('schema: companymd/context/v1', 'schema: agentcompanies/v1'),
+    'utf8',
+  );
+  const report = lintPack(temp);
+  assert.ok(report.findings.some((finding) => finding.ruleId === 'metadata/schema' && finding.severity === 'error'));
 });
 
 test('visual context orders business context before DESIGN.md', () => {
@@ -28,6 +57,19 @@ test('visual context orders business context before DESIGN.md', () => {
   assert.deepEqual(result.files, ['COMPANY.md', 'CUSTOMER.md', 'OFFER.md', 'VOICE.md', 'DESIGN.md']);
   assert.ok(result.markdown.indexOf('# Source: VOICE.md') < result.markdown.indexOf('# Source: DESIGN.md'));
   assert.match(result.markdown, /Do not invent pricing, proof, promises/);
+  assert.equal(result.sources.length, 5);
+  assert.ok(result.sources.every((source) => /^[a-f0-9]{64}$/.test(source.sha256)));
+});
+
+test('writes a machine-readable context receipt', () => {
+  const result = createContext(path.resolve('examples/northstar'), { profile: 'visual', clearance: 'internal' });
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'companymd-receipt-'));
+  const output = path.join(temp, 'context.companymd.json');
+  writeContextReceipt(result, output);
+  const receipt = JSON.parse(fs.readFileSync(output, 'utf8')) as { schema: string; profile: string; sources: unknown[] };
+  assert.equal(receipt.schema, 'companymd/context-receipt/v1');
+  assert.equal(receipt.profile, 'visual');
+  assert.equal(receipt.sources.length, 5);
 });
 
 test('context fails closed on draft status and insufficient clearance', () => {
@@ -51,6 +93,19 @@ test('initializer does not overwrite an existing pack implicitly', () => {
     () => initPack(temp, { name: 'Second Company', now: new Date('2026-08-23T00:00:00Z') }),
     /Refusing to overwrite/,
   );
+});
+
+test('initializer safely quotes human labels in YAML', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'companymd-quoted-name-'));
+  initPack(temp, {
+    name: 'Acme "North"\nGroup',
+    owner: 'Strategy & "Ops"',
+    contact: 'context@acme.example',
+    now: new Date('2026-08-23T00:00:00Z'),
+  });
+  const report = lintPack(temp, { now: new Date('2026-08-23T00:00:00Z') });
+  assert.equal(report.summary.errors, 0);
+  assert.match(fs.readFileSync(path.join(temp, 'COMPANY.md'), 'utf8'), /name: "Acme \\"North\\" Group"/);
 });
 
 test('a pack cannot link a deprecated companion', () => {

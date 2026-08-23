@@ -5,6 +5,8 @@ import { lintDocument } from '../src/lint.js';
 
 const validCompany = `---
 companymd: "0.1"
+schema: companymd/context/v1
+maturity: enterprise
 kind: company
 id: test-company
 name: Test Company
@@ -12,6 +14,7 @@ status: active
 classification: internal
 owners:
   - team: Strategy
+    contact: strategy@test-company.example
 review:
   last_reviewed: "2026-08-20"
   next_review: "2026-11-20"
@@ -68,9 +71,10 @@ test('reports missing sections and stale review dates', () => {
 });
 
 test('rejects unresolved claims and likely secrets', () => {
+  const syntheticAccessKey = `AKIA${'ABCDEFGHIJKLMNOP'}`;
   const unsafe = validCompany
     .replace('{claim:company.verified-fact}', '{claim:company.not-registered}')
-    .replace('No open questions.', 'Credential: AKIAABCDEFGHIJKLMNOP');
+    .replace('No open questions.', `Credential: ${syntheticAccessKey}`);
   const findings = lintDocument(parseDocument(unsafe, 'COMPANY.md'));
   assert.ok(findings.some((finding) => finding.ruleId === 'evidence/unknown-claim'));
   assert.ok(findings.some((finding) => finding.ruleId === 'security/possible-secret'));

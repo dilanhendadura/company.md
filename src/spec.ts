@@ -1,6 +1,8 @@
 import type { Classification, DocumentKind } from './types.js';
 
 export const SPEC_VERSION = '0.1';
+export const SCHEMA_ID = 'companymd/context/v1';
+export const MATURITY_LEVELS = ['starter', 'team', 'enterprise'] as const;
 
 export const KINDS: DocumentKind[] = ['company', 'customer', 'offer', 'voice'];
 export const STATUSES = ['draft', 'active', 'deprecated'] as const;

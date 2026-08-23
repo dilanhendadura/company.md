@@ -18,11 +18,11 @@ Ownership should map to durable teams. The same person may perform multiple role
 
 ### 1. Pilot
 
-Choose one product, region, language, agent workflow, and measurable failure mode. Initialize the pack as `draft`, interview owners, and compare outputs with and without the pack. Good pilot measures include unsupported claims, review cycles, brand corrections, and time spent locating authoritative context.
+Choose one product, region, language, agent workflow, and measurable failure mode. Inventory existing material with `companymd adopt`, initialize a `starter` pack as `draft`, interview owners, and compare outputs with and without the pack. Good pilot measures include unsupported claims, review cycles, brand corrections, and time spent locating authoritative context.
 
 ### 2. Controlled use
 
-Activate the pack, add owner review through CODEOWNERS or an equivalent control, run lint in CI, and generate context at execution time. Store generated bundles outside source control.
+Move to `team`, activate the pack, add owner review through CODEOWNERS or an equivalent control, run lint in CI, and generate context plus a receipt at execution time. Store generated bundles outside source control.
 
 ### 3. Scoped expansion
 
@@ -30,7 +30,7 @@ Add complete overlays only when a region, business unit, product, or locale has 
 
 ### 4. Operational governance
 
-Track stale documents, exception expiry, context-related incidents, claim removals, and agent workflows consuming each profile. Treat changes to promises, prohibited claims, classification, and active status as controlled changes.
+Move to `enterprise` only after durable contacts and access controls exist. Track stale documents, exception expiry, context-related incidents, claim removals, and agent workflows consuming each profile. Treat changes to promises, prohibited claims, classification, and active status as controlled changes.
 
 ## Repository patterns
 
@@ -125,4 +125,4 @@ Measure whether Company.md changes operating quality:
 - percentage of outputs using the correct scope and profile;
 - incidents caused by over-classified or outdated context.
 
-High lint scores alone are not success. A perfectly structured document can still contain vague, untrue, or unactionable strategy.
+Lint conformance alone is not success. A perfectly structured document can still contain vague, untrue, or unactionable strategy; never turn the result into a truth score.

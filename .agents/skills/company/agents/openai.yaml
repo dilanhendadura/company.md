@@ -1,0 +1,7 @@
+interface:
+  display_name: "Company"
+  short_description: "Create work from approved company context"
+  brand_color: "#172033"
+  default_prompt: "Use $company to create a sales deck for this customer using the approved company and design context."
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,38 @@
+{
+  "schema": "companymd/receipt/v1",
+  "generatedAt": "2026-08-23T01:03:16.878Z",
+  "profile": "visual",
+  "clearance": "internal",
+  "deliverable": {
+    "path": "evals/sales-deck/candidate.md",
+    "sha256": "06bd1c22866fe0d30657d21d617e7971f8eebad77fbfccd389cf937fa176519e"
+  },
+  "sources": [
+    {
+      "path": "examples/northstar/COMPANY.md",
+      "sha256": "c940d2474d59ac461108010648c278dd7d040337a2ebd06c30be64bc1a521913"
+    },
+    {
+      "path": "examples/northstar/CUSTOMER.md",
+      "sha256": "52dcfae3455773f1d2cc0f56dfc0d556aa37e8b30d6e05429acb96acf472af9a"
+    },
+    {
+      "path": "examples/northstar/OFFER.md",
+      "sha256": "323a005b72d9d6542d5d5ea5972afe7e9109fb23ce49b37cb1f55348f2c9d686"
+    },
+    {
+      "path": "examples/northstar/VOICE.md",
+      "sha256": "d01ee85768ab1a9a9fb08e8f69ce06c6c81201e81b170977978f62e5c94036d4"
+    },
+    {
+      "path": "examples/northstar/DESIGN.md",
+      "sha256": "33d381a27893ac47c606473d3e4b4d4b2847f56523f453418049468cd553536c"
+    }
+  ],
+  "clientSources": [
+    "evals/sales-deck/SCENARIO.md"
+  ],
+  "unresolved": [
+    "PPTX export and rendered-slide QA pending because the required presentation runtime loader was unavailable"
+  ]
+}

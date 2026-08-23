@@ -1,0 +1,33 @@
+name: Format proposal
+description: Propose a compatible change to the Company.md format or behavior.
+title: "[Proposal]: "
+labels: [proposal]
+body:
+  - type: textarea
+    id: failure
+    attributes:
+      label: Concrete agent or governance failure
+      description: What real behavior cannot be handled safely by the current format?
+    validations:
+      required: true
+  - type: textarea
+    id: organizations
+    attributes:
+      label: Organization shapes
+      description: Give sanitized examples from at least two different organization shapes.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Explain why prose, an extension key, or an extra section is insufficient.
+    validations:
+      required: true
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Compatibility, migration, and risk
+      description: Cover existing packs, linter behavior, privacy, security, and false positives.
+    validations:
+      required: true
