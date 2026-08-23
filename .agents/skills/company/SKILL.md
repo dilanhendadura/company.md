@@ -52,6 +52,8 @@ Before returning the work:
 - distinguish verified facts, user-provided client facts, and assumptions;
 - preserve the context receipt beside the deliverable when the output is a file.
 
-For a file-based output that needs artifact-level traceability, also run `scripts/create-receipt.mjs` after generation. Pass `--root <repository-root>` so stored paths remain portable, plus the deliverable, selected profile and clearance, exact source files, client sources, generated intermediates, and unresolved facts. When a required artifact cannot be created, use `--expected-deliverable` and blocked verification gates instead of inventing a file or hand-writing a receipt. Keep the receipt beside the artifact path.
+For a file-based output that needs artifact-level traceability, also run `scripts/create-receipt.mjs` after generation. Pass `--root <repository-root>` so stored paths remain portable, `--contract generic/v1` (or the more specific required contract), plus the deliverable, selected profile and clearance, exact source files, client sources, generated intermediates, unresolved facts, and verification gates. When a required artifact cannot be created, use `--expected-deliverable` and blocked verification gates instead of inventing a file or hand-writing a receipt. Keep the receipt beside the artifact path.
+
+After writing the receipt, invoke the skill runner with `artifact verify <receipt> --root <repository-root> --format pretty`. Treat a nonzero result as a failed handoff: fix stale paths, changed hashes, contradictory completion state, or missing contract gates, then regenerate and verify the receipt. Never claim that a file is complete from the receipt fields alone.
 
 Return the artifact first, followed by a concise Company check naming the profile, source files, unresolved facts, and any approval still required. Do not expose the generated context bundle as a second source of truth.

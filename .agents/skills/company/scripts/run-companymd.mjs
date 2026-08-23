@@ -4,7 +4,7 @@ import { existsSync, statSync } from 'node:fs';
 import { delimiter, dirname, isAbsolute, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-const RELEASE = 'github:dilanhendadura/company.md#v0.3.2';
+const RELEASE = 'github:dilanhendadura/company.md#v0.3.3';
 const args = process.argv.slice(2);
 
 const override = process.env.COMPANYMD_CLI?.trim();

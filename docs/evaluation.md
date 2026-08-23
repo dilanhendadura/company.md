@@ -23,7 +23,7 @@ After generation:
 - make the narrowest source, skill, or tooling change supported by the observed failure;
 - rerun from a clean session.
 
-For file-based deliverables, record required artifact gates in the sibling `companymd/receipt/v1` file. Use stable ids and one of `pass`, `fail`, `blocked`, or `not-run`; do not hide a missing export or render behind a prose-only unresolved note.
+For file-based deliverables, record required artifact gates in the sibling `companymd/receipt/v1` file. Use stable ids and one of `pass`, `fail`, `blocked`, or `not-run`; do not hide a missing export or render behind a prose-only unresolved note. Declare `presentation/v1` for binary decks, then run `companymd artifact verify <receipt> --root <repository-root>` so hashes and contract gates are checked rather than merely trusted.
 
 For text companions, run the deterministic comparison directly:
 

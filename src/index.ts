@@ -10,6 +10,8 @@ export { createPackFromUrl, seedPackFromHtml, extractHomepageContext } from './b
 export type { BootstrapOptions, BootstrapResult } from './bootstrap.js';
 export { inspectForAdoption } from './adopt.js';
 export type { AdoptionCandidate, AdoptionReport, AdoptionTarget } from './adopt.js';
+export { ARTIFACT_CONTRACTS, PRESENTATION_REQUIRED_GATES, deriveArtifactCompletion, formatArtifactVerificationReport, verifyArtifactReceipt } from './artifact.js';
+export type { ArtifactCompletion, ArtifactContract, ArtifactGate, ArtifactGateStatus, ArtifactVerificationFinding, ArtifactVerificationReport, VerifyArtifactOptions } from './artifact.js';
 export { evaluateBeforeAfter } from './eval.js';
 export type { EvalCheck, EvalOutputResult, EvalReport } from './eval.js';
 export { lintDocument } from './lint.js';

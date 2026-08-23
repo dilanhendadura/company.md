@@ -85,7 +85,7 @@ Company.md owns business meaning and verbal constraints. The optional `DESIGN.md
 | Different agents invent different answers | Every agent sees the same scoped truth |
 | Drafts, assumptions, and approved claims look identical | Status, evidence, owner, and confidence are explicit |
 | A deck can be on-brand but commercially wrong | Business constraints are applied before visual rules |
-| Nobody can reconstruct which context produced a file | Receipts record sources and SHA-256 hashes |
+| Nobody can reconstruct which context produced a file | Receipts record sources and verifiable SHA-256 hashes |
 | Context quietly grows stale | Owners and review dates are linted in CI |
 
 This is a context contract, not an access-control system. Real repository and document permissions must match the declared classification. Never store credentials, raw personal data, or unrestricted confidential material in a pack.
@@ -133,6 +133,7 @@ companymd lint [path|-] [--format json|pretty] [--strict]
 companymd context [path] [--profile <profile>] [--clearance <level>] [--receipt <file>]
 companymd diff <before> <after>
 companymd eval [path] --baseline <file> --candidate <file> [--rubric <yaml>]
+companymd artifact verify <receipt.json> [--root <directory>] [--format json|pretty]
 companymd spec
 companymd schema [frontmatter|artifact-receipt]
 ```
@@ -148,6 +149,9 @@ companymd adopt ./existing-workspace --format pretty
 
 # Validate for CI; warnings fail too
 companymd lint ./company-context --strict
+
+# Recompute every recorded hash and enforce artifact-specific completion gates
+companymd artifact verify ./deck.pptx.companymd-receipt.json --root . --format pretty
 
 # Give an agent only the context required for visual work
 companymd context ./company-context \

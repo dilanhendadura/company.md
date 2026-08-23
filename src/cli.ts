@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inspectForAdoption } from './adopt.js';
+import { formatArtifactVerificationReport, verifyArtifactReceipt } from './artifact.js';
 import { createPackFromUrl } from './bootstrap.js';
 import { createContext, writeContext, writeContextReceipt } from './context.js';
 import { diffPacks } from './diff.js';
@@ -16,7 +17,7 @@ import { parseDocument } from './parser.js';
 import { CLASSIFICATIONS, MATURITY_LEVELS, PROFILE_ROLES, SPEC_VERSION } from './spec.js';
 import type { Classification, Finding, LintReport, MaturityLevel } from './types.js';
 
-const VERSION = '0.3.2';
+const VERSION = '0.3.3';
 const BOOLEAN_OPTIONS = new Set(['strict', 'with-design', 'force', 'allow-invalid', 'allow-draft', 'help', 'version']);
 
 async function main(argv: string[]): Promise<number> {
@@ -50,6 +51,8 @@ async function main(argv: string[]): Promise<number> {
       return runDiff(parsed);
     case 'eval':
       return runEval(parsed);
+    case 'artifact':
+      return runArtifact(parsed);
     case 'spec':
       process.stdout.write(readProjectFile('SPEC.md'));
       return 0;
@@ -203,6 +206,19 @@ function runEval(args: ParsedArgs): number {
   return report.regressions.length > 0 || !report.candidate.passed ? 1 : 0;
 }
 
+function runArtifact(args: ParsedArgs): number {
+  const subcommand = args.positionals[0];
+  if (subcommand !== 'verify') throw new Error('artifact requires: verify <receipt.json>');
+  const receipt = args.positionals[1];
+  if (!receipt) throw new Error('artifact verify requires <receipt.json>');
+  const report = verifyArtifactReceipt(receipt, { root: args.options.get('root') ?? process.cwd() });
+  const format = args.options.get('format') ?? 'json';
+  if (format === 'json') process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+  else if (format === 'pretty') process.stdout.write(formatArtifactVerificationReport(report));
+  else throw new Error('--format must be json or pretty');
+  return report.valid ? 0 : 1;
+}
+
 function lintStdin(): LintReport {
   const content = fs.readFileSync(0, 'utf8');
   try {
@@ -337,6 +353,7 @@ Usage:
   companymd context [path] [--profile <profile>] [--clearance <level>] [--output <file>] [--receipt <file>]
   companymd diff <before> <after>
   companymd eval [path] --baseline <file> --candidate <file> [--rubric <yaml>]
+  companymd artifact verify <receipt.json> [--root <directory>] [--format json|pretty]
   companymd spec
   companymd schema [frontmatter|artifact-receipt]
 
