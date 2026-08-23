@@ -2,6 +2,14 @@
 
 All notable changes to Company.md will be documented here.
 
+## 0.3.3 — 2026-08-23
+
+- Adds `companymd artifact verify` to recompute deliverable, source, and intermediate hashes and reject stale or escaped paths.
+- Adds explicit `generic/v1` and `presentation/v1` artifact contracts.
+- Enforces export, render, overflow, and design-conformance gates for presentation receipts before completion can pass.
+- Rejects files renamed to `.pptx`, `.pdf`, or `.odp` when their binary structure does not match the declared presentation format.
+- Rejects missing deck gates, contradictory completion states, duplicate receipt options, and unknown receipt-tool flags.
+
 ## 0.3.2 — 2026-08-23
 
 - Adds machine-readable artifact verification gates and a public `companymd schema artifact-receipt` contract.

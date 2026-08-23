@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { inspectForAdoption } from '../src/adopt.js';
+import { verifyArtifactReceipt } from '../src/artifact.js';
 import { seedPackFromHtml } from '../src/bootstrap.js';
 import { createContext, writeContextReceipt } from '../src/context.js';
 import { evaluateBeforeAfter } from '../src/eval.js';
@@ -91,6 +92,7 @@ test('context receipts record source hashes and profile', () => {
 
 test('the checked-in sales-deck candidate receipt matches its artifact and sources', () => {
   const receipt = JSON.parse(fs.readFileSync('evals/sales-deck/candidate.companymd.json', 'utf8')) as {
+    contract: string;
     profile: string;
     completion: string;
     deliverable: { path: string; exists: boolean; sha256: null };
@@ -101,6 +103,7 @@ test('the checked-in sales-deck candidate receipt matches its artifact and sourc
   };
   const digest = (file: string): string => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
   assert.equal(receipt.profile, 'visual');
+  assert.equal(receipt.contract, 'presentation/v1');
   assert.equal(receipt.completion, 'blocked');
   assert.equal(receipt.deliverable.exists, false);
   assert.equal(receipt.deliverable.sha256, null);
@@ -109,6 +112,7 @@ test('the checked-in sales-deck candidate receipt matches its artifact and sourc
   assert.ok(receipt.sources.every((source) => digest(source.path) === source.sha256));
   assert.ok(receipt.unresolved.some((item) => /PPTX export/.test(item)));
   assert.ok(receipt.verification.some((check) => check.id === 'artifact/export' && check.status === 'blocked'));
+  assert.equal(verifyArtifactReceipt('evals/sales-deck/candidate.companymd.json').valid, true);
 });
 
 test('artifact receipt tool records completed and expected blocked deliverables', () => {
@@ -128,20 +132,24 @@ test('artifact receipt tool records completed and expected blocked deliverables'
     '--deliverable', deliverable,
     '--profile', 'visual',
     '--clearance', 'internal',
+    '--contract', 'generic/v1',
     '--source', source,
     '--check', 'artifact/export=pass',
     '--check-note', 'artifact/export=exported by the presentation runtime',
   );
   assert.equal(complete.status, 0, complete.stderr);
   const completed = JSON.parse(fs.readFileSync(completeReceipt, 'utf8')) as {
+    contract: string;
     completion: string;
     deliverable: { exists: boolean; sha256: string };
     verification: Array<{ note?: string }>;
   };
+  assert.equal(completed.contract, 'generic/v1');
   assert.equal(completed.completion, 'complete');
   assert.equal(completed.deliverable.exists, true);
   assert.match(completed.deliverable.sha256, /^[a-f0-9]{64}$/);
   assert.equal(completed.verification[0]?.note, 'exported by the presentation runtime');
+  assert.equal(verifyArtifactReceipt(completeReceipt, { root: target }).valid, true);
 
   const blocked = run(
     '--root', target,
@@ -149,10 +157,13 @@ test('artifact receipt tool records completed and expected blocked deliverables'
     '--expected-deliverable', path.join(target, 'blocked.pptx'),
     '--profile', 'visual',
     '--clearance', 'internal',
+    '--contract', 'presentation/v1',
     '--source', source,
     '--check', 'artifact/export=blocked',
     '--check-note', 'artifact/export=presentation runtime unavailable',
     '--check', 'artifact/render=not-run',
+    '--check', 'artifact/overflow=not-run',
+    '--check', 'design/conformance=not-run',
   );
   assert.equal(blocked.status, 0, blocked.stderr);
   const pending = JSON.parse(fs.readFileSync(blockedReceipt, 'utf8')) as {
@@ -164,6 +175,51 @@ test('artifact receipt tool records completed and expected blocked deliverables'
   assert.equal(pending.deliverable.exists, false);
   assert.equal(pending.deliverable.sha256, null);
   assert.equal(pending.verification[0]?.note, 'presentation runtime unavailable');
+  assert.equal(verifyArtifactReceipt(blockedReceipt, { root: target }).valid, true);
+
+  const fakeDeck = path.join(target, 'fake.pptx');
+  const fakeDeckReceipt = path.join(target, 'fake.pptx.companymd-receipt.json');
+  fs.writeFileSync(fakeDeck, 'not a PowerPoint file', 'utf8');
+  const fakePresentation = run(
+    '--root', target,
+    '--output', fakeDeckReceipt,
+    '--deliverable', fakeDeck,
+    '--profile', 'visual',
+    '--clearance', 'internal',
+    '--contract', 'presentation/v1',
+    '--check', 'artifact/export=pass',
+    '--check', 'artifact/render=pass',
+    '--check', 'artifact/overflow=pass',
+    '--check', 'design/conformance=pass',
+  );
+  assert.equal(fakePresentation.status, 0, fakePresentation.stderr);
+  const fakeVerification = verifyArtifactReceipt(fakeDeckReceipt, { root: target });
+  assert.equal(fakeVerification.valid, false);
+  assert.ok(fakeVerification.findings.some((finding) => finding.ruleId === 'presentation/format'));
+
+  const missingPresentationGate = run(
+    '--root', target,
+    '--output', path.join(target, 'missing-gate.json'),
+    '--deliverable', deliverable,
+    '--profile', 'visual',
+    '--clearance', 'internal',
+    '--contract', 'presentation/v1',
+    '--check', 'artifact/export=pass',
+  );
+  assert.notEqual(missingPresentationGate.status, 0);
+  assert.match(missingPresentationGate.stderr, /missing required verification gates/);
+
+  const unknownOption = run(
+    '--root', target,
+    '--output', path.join(target, 'unknown.json'),
+    '--deliverable', deliverable,
+    '--profile', 'visual',
+    '--clearance', 'internal',
+    '--check', 'artifact/export=pass',
+    '--typo', 'ignored-before-v0.3.3',
+  );
+  assert.notEqual(unknownOption.status, 0);
+  assert.match(unknownOption.stderr, /Unknown option: --typo/);
 
   const invalid = run(
     '--root', target,
@@ -177,4 +233,25 @@ test('artifact receipt tool records completed and expected blocked deliverables'
   );
   assert.notEqual(invalid.status, 0);
   assert.match(invalid.stderr, /Duplicate --check-note id/);
+
+  const contradictoryReceipt = path.join(target, 'contradictory.json');
+  fs.writeFileSync(contradictoryReceipt, `${JSON.stringify({ ...completed, completion: 'blocked' }, null, 2)}\n`, 'utf8');
+  const contradictory = verifyArtifactReceipt(contradictoryReceipt, { root: target });
+  assert.equal(contradictory.valid, false);
+  assert.ok(contradictory.findings.some((finding) => finding.ruleId === 'completion/mismatch'));
+
+  const escapedReceipt = path.join(target, 'escaped.json');
+  fs.writeFileSync(escapedReceipt, `${JSON.stringify({
+    ...completed,
+    sources: [{ path: '../outside.md', exists: true, sha256: '0'.repeat(64) }],
+  }, null, 2)}\n`, 'utf8');
+  const escaped = verifyArtifactReceipt(escapedReceipt, { root: target });
+  assert.equal(escaped.valid, false);
+  assert.ok(escaped.findings.some((finding) => finding.ruleId === 'file/outside-root'));
+
+  fs.writeFileSync(source, '# Company\nTampered after receipt.\n', 'utf8');
+  const tampered = verifyArtifactReceipt(completeReceipt, { root: target });
+  assert.equal(tampered.valid, false);
+  assert.ok(tampered.findings.some((finding) => finding.ruleId === 'file/hash-mismatch'));
+
 });

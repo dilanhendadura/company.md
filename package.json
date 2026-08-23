@@ -1,6 +1,6 @@
 {
   "name": "company.md",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "An open, agent-readable company context standard for enterprise AI workspaces.",
   "homepage": "https://github.com/dilanhendadura/company.md#readme",
   "repository": {

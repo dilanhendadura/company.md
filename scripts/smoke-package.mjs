@@ -120,6 +120,7 @@ try {
     "--deliverable", join(consumer, "context.md"),
     "--profile", "visual",
     "--clearance", "internal",
+    "--contract", "generic/v1",
     "--source", join(pack, "COMPANY.md"),
     "--client-source", "package smoke scenario",
     "--check", "artifact/export=pass",
@@ -134,6 +135,7 @@ try {
     "--expected-deliverable", expectedDeck,
     "--profile", "visual",
     "--clearance", "internal",
+    "--contract", "presentation/v1",
     "--source", join(pack, "DESIGN.md"),
     "--intermediate", join(consumer, "context.md"),
     "--client-source", "package smoke scenario",
@@ -141,8 +143,23 @@ try {
     "--check-note", "artifact/export=presentation runtime unavailable",
     "--check", "artifact/render=not-run",
     "--check-note", "artifact/render=no exported deck to render",
+    "--check", "artifact/overflow=not-run",
+    "--check-note", "artifact/overflow=no rendered slides to inspect",
+    "--check", "design/conformance=not-run",
+    "--check-note", "design/conformance=no rendered slides to inspect",
     "--unresolved", "presentation runtime unavailable",
   ], { cwd: pack, quiet: true });
+
+  run(executable, ["artifact", "verify", artifactReceipt, "--root", consumer], {
+    cwd: consumer,
+    quiet: true,
+    shell,
+  });
+  run(executable, ["artifact", "verify", blockedArtifactReceipt, "--root", consumer], {
+    cwd: consumer,
+    quiet: true,
+    shell,
+  });
 
   for (const path of [
     join(pack, "COMPANY.md"),
@@ -168,6 +185,7 @@ try {
   const artifact = JSON.parse(readFileSync(artifactReceipt, "utf8"));
   if (
     artifact.completion !== "blocked"
+    || artifact.contract !== "generic/v1"
     || artifact.deliverable?.exists !== true
     || artifact.verification?.[0]?.id !== "artifact/export"
     || artifact.verification?.[0]?.status !== "pass"
@@ -179,6 +197,7 @@ try {
   const blockedArtifact = JSON.parse(readFileSync(blockedArtifactReceipt, "utf8"));
   if (
     blockedArtifact.completion !== "blocked"
+    || blockedArtifact.contract !== "presentation/v1"
     || blockedArtifact.deliverable?.path !== "expected-deck.pptx"
     || blockedArtifact.deliverable?.exists !== false
     || blockedArtifact.deliverable?.sha256 !== null

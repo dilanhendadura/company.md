@@ -15,6 +15,9 @@
   ],
   "properties": {
     "schema": { "const": "companymd/receipt/v1" },
+    "contract": {
+      "enum": ["generic/v1", "presentation/v1"]
+    },
     "generatedAt": { "type": "string", "format": "date-time" },
     "profile": {
       "enum": ["core", "customer", "commercial", "communications", "visual", "all"]
@@ -70,6 +73,15 @@
   },
   "allOf": [
     {
+      "if": { "required": ["contract"] },
+      "then": {
+        "required": ["completion", "verification"],
+        "properties": {
+          "verification": { "minItems": 1 }
+        }
+      }
+    },
+    {
       "if": {
         "properties": {
           "deliverable": {
@@ -110,12 +122,51 @@
           }
         }
       }
+    },
+    {
+      "if": {
+        "required": ["contract"],
+        "properties": { "contract": { "const": "presentation/v1" } }
+      },
+      "then": {
+        "properties": {
+          "profile": { "const": "visual" },
+          "verification": {
+            "allOf": [
+              {
+                "contains": {
+                  "required": ["id"],
+                  "properties": { "id": { "const": "artifact/export" } }
+                }
+              },
+              {
+                "contains": {
+                  "required": ["id"],
+                  "properties": { "id": { "const": "artifact/render" } }
+                }
+              },
+              {
+                "contains": {
+                  "required": ["id"],
+                  "properties": { "id": { "const": "artifact/overflow" } }
+                }
+              },
+              {
+                "contains": {
+                  "required": ["id"],
+                  "properties": { "id": { "const": "design/conformance" } }
+                }
+              }
+            ]
+          }
+        }
+      }
     }
   ],
   "$defs": {
     "deliverableRecord": {
       "type": "object",
-      "required": ["path", "sha256"],
+      "required": ["path", "exists", "sha256"],
       "properties": {
         "path": { "type": "string", "minLength": 1 },
         "exists": { "type": "boolean" },
@@ -145,7 +196,7 @@
     },
     "fileRecord": {
       "type": "object",
-      "required": ["path", "sha256"],
+      "required": ["path", "exists", "sha256"],
       "properties": {
         "path": { "type": "string", "minLength": 1 },
         "exists": { "const": true },

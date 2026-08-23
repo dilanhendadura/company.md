@@ -11,6 +11,7 @@ Usage:
 
 Options:
   --root <directory>       Store portable paths relative to this root
+  --contract <name>        Artifact contract: generic/v1 or presentation/v1 (default: generic/v1)
   --source <file>          Governed source file; repeat as needed
   --intermediate <file>    Generated intermediate file; repeat as needed
   --client-source <label>  Client input or source label; repeat as needed
@@ -29,15 +30,20 @@ function parseArgs(argv) {
   const values = new Map();
   const repeated = new Map();
   const repeatable = new Set(['source', 'intermediate', 'client-source', 'unresolved', 'check', 'check-note']);
+  const allowed = new Set([
+    'output', 'deliverable', 'expected-deliverable', 'profile', 'clearance', 'root', 'contract', ...repeatable,
+  ]);
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (!token?.startsWith('--')) throw new Error(`Unexpected argument: ${token ?? ''}`);
     const key = token.slice(2);
+    if (!allowed.has(key)) throw new Error(`Unknown option: --${key}`);
     const value = argv[index + 1];
     if (!value || value.startsWith('--')) throw new Error(`--${key} requires a value`);
     if (repeatable.has(key)) {
       repeated.set(key, [...(repeated.get(key) ?? []), value]);
     } else {
+      if (values.has(key)) throw new Error(`Duplicate option: --${key}`);
       values.set(key, value);
     }
     index += 1;
@@ -119,7 +125,7 @@ function parseAssignment(value, label) {
 function completionStatus(verification, deliverableExists) {
   if (verification.some((check) => check.status === 'fail')) return 'failed';
   if (verification.some((check) => check.status === 'blocked')) return 'blocked';
-  if (!deliverableExists || verification.some((check) => check.status === 'not-run')) return 'incomplete';
+  if (!deliverableExists || verification.length === 0 || verification.some((check) => check.status === 'not-run')) return 'incomplete';
   return 'complete';
 }
 
@@ -130,6 +136,7 @@ const expectedDeliverable = values.get('expected-deliverable');
 const profile = values.get('profile');
 const clearance = values.get('clearance');
 const root = values.get('root') ? path.resolve(values.get('root')) : undefined;
+const contract = values.get('contract') ?? 'generic/v1';
 const verification = verificationChecks(repeated.get('check') ?? [], repeated.get('check-note') ?? []);
 if (!output || (!deliverable && !expectedDeliverable) || !profile || !clearance) {
   throw new Error('Required: --output, exactly one of --deliverable or --expected-deliverable, --profile, and --clearance');
@@ -141,6 +148,17 @@ if (!new Set(['core', 'customer', 'commercial', 'communications', 'visual', 'all
 if (!new Set(['public', 'internal', 'confidential', 'restricted']).has(clearance)) {
   throw new Error(`Invalid --clearance ${clearance}`);
 }
+if (!new Set(['generic/v1', 'presentation/v1']).has(contract)) {
+  throw new Error(`Invalid --contract ${contract}; expected generic/v1 or presentation/v1`);
+}
+if (verification.length === 0) throw new Error('At least one --check verification gate is required');
+if (contract === 'presentation/v1') {
+  if (profile !== 'visual') throw new Error('presentation/v1 requires --profile visual');
+  const required = ['artifact/export', 'artifact/render', 'artifact/overflow', 'design/conformance'];
+  const present = new Set(verification.map((check) => check.id));
+  const missing = required.filter((id) => !present.has(id));
+  if (missing.length) throw new Error(`presentation/v1 is missing required verification gates: ${missing.join(', ')}`);
+}
 if (expectedDeliverable && !verification.some((check) => ['fail', 'blocked'].includes(check.status))) {
   throw new Error('--expected-deliverable requires at least one failed or blocked verification gate');
 }
@@ -148,6 +166,7 @@ const deliverableRecord = deliverable ? fileRecord(deliverable, root) : expected
 
 const receipt = {
   schema: 'companymd/receipt/v1',
+  contract,
   generatedAt: new Date().toISOString(),
   profile,
   clearance,
