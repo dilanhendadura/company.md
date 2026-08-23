@@ -23,6 +23,7 @@
 
 - [ ] Every claimed evaluation is reproducible from committed inputs and rubric.
 - [ ] File-based outputs include a portable context receipt with source hashes.
+- [ ] Artifact receipts record required verification gates as `pass`, `fail`, `blocked`, or `not-run`.
 - [ ] Visual artifacts are exported, rendered, and inspected for overflow, clipping, and design-system conformance.
 - [ ] Blocked gates remain labeled blocked in the README and result file.
 

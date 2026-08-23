@@ -3,9 +3,11 @@
   "generatedAt": "2026-08-23T01:03:16.878Z",
   "profile": "visual",
   "clearance": "internal",
+  "completion": "blocked",
   "deliverable": {
-    "path": "evals/sales-deck/candidate.md",
-    "sha256": "06bd1c22866fe0d30657d21d617e7971f8eebad77fbfccd389cf937fa176519e"
+    "path": "evals/sales-deck/candidate.pptx",
+    "exists": false,
+    "sha256": null
   },
   "sources": [
     {
@@ -29,10 +31,38 @@
       "sha256": "33d381a27893ac47c606473d3e4b4d4b2847f56523f453418049468cd553536c"
     }
   ],
+  "intermediates": [
+    {
+      "path": "evals/sales-deck/candidate.md",
+      "sha256": "06bd1c22866fe0d30657d21d617e7971f8eebad77fbfccd389cf937fa176519e"
+    }
+  ],
   "clientSources": [
     "evals/sales-deck/SCENARIO.md"
   ],
   "unresolved": [
     "PPTX export and rendered-slide QA pending because the required presentation runtime loader was unavailable"
+  ],
+  "verification": [
+    {
+      "id": "artifact/storyboard",
+      "status": "pass"
+    },
+    {
+      "id": "artifact/export",
+      "status": "blocked"
+    },
+    {
+      "id": "artifact/render",
+      "status": "blocked"
+    },
+    {
+      "id": "artifact/overflow",
+      "status": "not-run"
+    },
+    {
+      "id": "design/conformance",
+      "status": "not-run"
+    }
   ]
 }

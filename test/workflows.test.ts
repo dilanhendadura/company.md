@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -91,13 +92,89 @@ test('context receipts record source hashes and profile', () => {
 test('the checked-in sales-deck candidate receipt matches its artifact and sources', () => {
   const receipt = JSON.parse(fs.readFileSync('evals/sales-deck/candidate.companymd.json', 'utf8')) as {
     profile: string;
-    deliverable: { path: string; sha256: string };
+    completion: string;
+    deliverable: { path: string; exists: boolean; sha256: null };
+    intermediates: Array<{ path: string; sha256: string }>;
     sources: Array<{ path: string; sha256: string }>;
     unresolved: string[];
+    verification: Array<{ id: string; status: string }>;
   };
   const digest = (file: string): string => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
   assert.equal(receipt.profile, 'visual');
-  assert.equal(digest(receipt.deliverable.path), receipt.deliverable.sha256);
+  assert.equal(receipt.completion, 'blocked');
+  assert.equal(receipt.deliverable.exists, false);
+  assert.equal(receipt.deliverable.sha256, null);
+  assert.equal(fs.existsSync(receipt.deliverable.path), false);
+  assert.ok(receipt.intermediates.every((intermediate) => digest(intermediate.path) === intermediate.sha256));
   assert.ok(receipt.sources.every((source) => digest(source.path) === source.sha256));
   assert.ok(receipt.unresolved.some((item) => /PPTX export/.test(item)));
+  assert.ok(receipt.verification.some((check) => check.id === 'artifact/export' && check.status === 'blocked'));
+});
+
+test('artifact receipt tool records completed and expected blocked deliverables', () => {
+  const target = fs.mkdtempSync(path.join(os.tmpdir(), 'companymd-artifact-receipt-'));
+  const tool = path.resolve('.agents/skills/company/scripts/create-receipt.mjs');
+  const source = path.join(target, 'COMPANY.md');
+  const deliverable = path.join(target, 'deck.pptx');
+  const completeReceipt = path.join(target, 'deck.pptx.companymd-receipt.json');
+  const blockedReceipt = path.join(target, 'blocked.pptx.companymd-receipt.json');
+  fs.writeFileSync(source, '# Company\n', 'utf8');
+  fs.writeFileSync(deliverable, 'test artifact', 'utf8');
+
+  const run = (...args: string[]) => spawnSync(process.execPath, [tool, ...args], { encoding: 'utf8' });
+  const complete = run(
+    '--root', target,
+    '--output', completeReceipt,
+    '--deliverable', deliverable,
+    '--profile', 'visual',
+    '--clearance', 'internal',
+    '--source', source,
+    '--check', 'artifact/export=pass',
+    '--check-note', 'artifact/export=exported by the presentation runtime',
+  );
+  assert.equal(complete.status, 0, complete.stderr);
+  const completed = JSON.parse(fs.readFileSync(completeReceipt, 'utf8')) as {
+    completion: string;
+    deliverable: { exists: boolean; sha256: string };
+    verification: Array<{ note?: string }>;
+  };
+  assert.equal(completed.completion, 'complete');
+  assert.equal(completed.deliverable.exists, true);
+  assert.match(completed.deliverable.sha256, /^[a-f0-9]{64}$/);
+  assert.equal(completed.verification[0]?.note, 'exported by the presentation runtime');
+
+  const blocked = run(
+    '--root', target,
+    '--output', blockedReceipt,
+    '--expected-deliverable', path.join(target, 'blocked.pptx'),
+    '--profile', 'visual',
+    '--clearance', 'internal',
+    '--source', source,
+    '--check', 'artifact/export=blocked',
+    '--check-note', 'artifact/export=presentation runtime unavailable',
+    '--check', 'artifact/render=not-run',
+  );
+  assert.equal(blocked.status, 0, blocked.stderr);
+  const pending = JSON.parse(fs.readFileSync(blockedReceipt, 'utf8')) as {
+    completion: string;
+    deliverable: { exists: boolean; sha256: null };
+    verification: Array<{ id: string; status: string; note?: string }>;
+  };
+  assert.equal(pending.completion, 'blocked');
+  assert.equal(pending.deliverable.exists, false);
+  assert.equal(pending.deliverable.sha256, null);
+  assert.equal(pending.verification[0]?.note, 'presentation runtime unavailable');
+
+  const invalid = run(
+    '--root', target,
+    '--output', path.join(target, 'invalid.json'),
+    '--expected-deliverable', path.join(target, 'invalid.pptx'),
+    '--profile', 'visual',
+    '--clearance', 'internal',
+    '--check', 'artifact/export=blocked',
+    '--check-note', 'artifact/export=first cause',
+    '--check-note', 'artifact/export=second cause',
+  );
+  assert.notEqual(invalid.status, 0);
+  assert.match(invalid.stderr, /Duplicate --check-note id/);
 });

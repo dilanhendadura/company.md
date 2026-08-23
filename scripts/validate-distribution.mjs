@@ -18,6 +18,7 @@ const pkg = readJson("package.json");
 const plugin = readJson("plugins/company-md/.codex-plugin/plugin.json");
 const marketplace = readJson(".agents/plugins/marketplace.json");
 const entry = marketplace.plugins?.find((candidate) => candidate.name === plugin.name);
+const runner = readFileSync(join(root, ".agents", "skills", "company", "scripts", "run-companymd.mjs"), "utf8");
 
 assert(plugin.version === pkg.version, "Plugin and npm package versions must match.");
 assert(marketplace.name === "company-md", "Marketplace name must remain `company-md`.");
@@ -27,6 +28,10 @@ assert(entry.source?.path === "./plugins/company-md", "Marketplace plugin path i
 assert(entry.policy?.installation === "AVAILABLE", "Plugin must be available for explicit installation.");
 assert(entry.policy?.authentication === "ON_INSTALL", "Plugin authentication policy is missing.");
 assert(plugin.skills === "./skills/", "Plugin must expose its skills directory.");
+assert(
+  runner.includes(`github:dilanhendadura/company.md#v${pkg.version}`),
+  "Skill runner must pin the same release as the npm package and plugin.",
+);
 
 for (const field of ["composerIcon", "logo", "logoDark"]) {
   const relativePath = plugin.interface?.[field];

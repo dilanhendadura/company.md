@@ -134,7 +134,7 @@ companymd context [path] [--profile <profile>] [--clearance <level>] [--receipt 
 companymd diff <before> <after>
 companymd eval [path] --baseline <file> --candidate <file> [--rubric <yaml>]
 companymd spec
-companymd schema
+companymd schema [frontmatter|artifact-receipt]
 ```
 
 Useful workflows:
@@ -169,7 +169,7 @@ The checked-in [sales-deck evaluation](evals/sales-deck/SCENARIO.md) compares a 
 | --- | --- |
 | Business + DESIGN.md validation | Pass: 0 errors, 0 warnings |
 | Textual conformance rubric | Pass: every baseline failure fixed, 0 regressions |
-| Source and artifact traceability | Pass: portable paths and SHA-256 hashes |
+| Source and artifact traceability | Pass: portable paths, SHA-256 hashes, and machine-readable artifact gates |
 | Package install and CLI workflow | Pass: both binaries in a clean environment |
 | Public Codex plugin and `$company` routing | Pass: isolated install selected the packaged skill and enforced a prohibited claim |
 | PowerPoint export and rendered-slide QA | Open gate: presentation runtime unavailable in the recorded run |

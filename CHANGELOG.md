@@ -2,6 +2,13 @@
 
 All notable changes to Company.md will be documented here.
 
+## 0.3.2 — 2026-08-23
+
+- Adds machine-readable artifact verification gates and a public `companymd schema artifact-receipt` contract.
+- Defines the binary presentation completion contract: export, render, overflow, and design checks must pass before an agent calls a deck complete.
+- Supports valid blocked receipts for expected artifacts that could not be created, including gate-specific notes and hashed intermediates.
+- Makes blocked and not-run artifact gates explicit in the checked-in sales-deck evaluation.
+
 ## 0.3.1 — 2026-08-23
 
 - Fixes complete product overlays so inherited base documents validate against their own company id.

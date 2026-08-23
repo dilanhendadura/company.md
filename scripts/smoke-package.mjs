@@ -95,6 +95,7 @@ try {
   run(executable, ["diff", pack, pack], { cwd: consumer, quiet: true, shell });
   run(executable, ["spec"], { cwd: consumer, quiet: true, shell });
   run(executable, ["schema"], { cwd: consumer, quiet: true, shell });
+  run(executable, ["schema", "artifact-receipt"], { cwd: consumer, quiet: true, shell });
   run(executable, ["install", pack, "--agent", "codex"], {
     cwd: consumer,
     quiet: true,
@@ -103,12 +104,45 @@ try {
   const skillRunner = join(pack, ".agents", "skills", "company", "scripts", "run-companymd.mjs");
   const receiptTool = join(pack, ".agents", "skills", "company", "scripts", "create-receipt.mjs");
   const packagedCli = join(consumer, "node_modules", "company.md", "dist", "cli.js");
+  const artifactReceipt = join(consumer, "artifact.companymd.json");
+  const blockedArtifactReceipt = join(consumer, "blocked-artifact.companymd.json");
+  const expectedDeck = join(consumer, "expected-deck.pptx");
   run(process.execPath, [skillRunner, "--version"], {
     cwd: pack,
     quiet: true,
     env: { ...process.env, COMPANYMD_CLI: packagedCli },
   });
   run(process.execPath, [receiptTool, "--help"], { cwd: pack, quiet: true });
+  run(process.execPath, [
+    receiptTool,
+    "--root", consumer,
+    "--output", artifactReceipt,
+    "--deliverable", join(consumer, "context.md"),
+    "--profile", "visual",
+    "--clearance", "internal",
+    "--source", join(pack, "COMPANY.md"),
+    "--client-source", "package smoke scenario",
+    "--check", "artifact/export=pass",
+    "--check", "artifact/render=blocked",
+    "--check-note", "artifact/render=render runtime intentionally absent from package smoke",
+    "--unresolved", "render runtime intentionally absent from package smoke",
+  ], { cwd: pack, quiet: true });
+  run(process.execPath, [
+    receiptTool,
+    "--root", consumer,
+    "--output", blockedArtifactReceipt,
+    "--expected-deliverable", expectedDeck,
+    "--profile", "visual",
+    "--clearance", "internal",
+    "--source", join(pack, "DESIGN.md"),
+    "--intermediate", join(consumer, "context.md"),
+    "--client-source", "package smoke scenario",
+    "--check", "artifact/export=blocked",
+    "--check-note", "artifact/export=presentation runtime unavailable",
+    "--check", "artifact/render=not-run",
+    "--check-note", "artifact/render=no exported deck to render",
+    "--unresolved", "presentation runtime unavailable",
+  ], { cwd: pack, quiet: true });
 
   for (const path of [
     join(pack, "COMPANY.md"),
@@ -121,6 +155,8 @@ try {
     receiptTool,
     join(consumer, "context.md"),
     join(consumer, "context.receipt.json"),
+    artifactReceipt,
+    blockedArtifactReceipt,
   ]) {
     requirePath(path);
   }
@@ -128,6 +164,29 @@ try {
   const context = readFileSync(join(consumer, "context.md"), "utf8");
   if (!context.includes("# Company context bundle") || !context.includes("# Source: DESIGN.md")) {
     throw new Error("Installed package did not generate the expected visual context bundle.");
+  }
+  const artifact = JSON.parse(readFileSync(artifactReceipt, "utf8"));
+  if (
+    artifact.completion !== "blocked"
+    || artifact.deliverable?.exists !== true
+    || artifact.verification?.[0]?.id !== "artifact/export"
+    || artifact.verification?.[0]?.status !== "pass"
+    || artifact.verification?.[1]?.id !== "artifact/render"
+    || artifact.verification?.[1]?.status !== "blocked"
+  ) {
+    throw new Error("Artifact receipt did not preserve machine-readable verification gates.");
+  }
+  const blockedArtifact = JSON.parse(readFileSync(blockedArtifactReceipt, "utf8"));
+  if (
+    blockedArtifact.completion !== "blocked"
+    || blockedArtifact.deliverable?.path !== "expected-deck.pptx"
+    || blockedArtifact.deliverable?.exists !== false
+    || blockedArtifact.deliverable?.sha256 !== null
+    || blockedArtifact.intermediates?.[0]?.path !== "context.md"
+    || !/^[a-f0-9]{64}$/.test(blockedArtifact.intermediates?.[0]?.sha256 ?? "")
+    || blockedArtifact.verification?.[0]?.note !== "presentation runtime unavailable"
+  ) {
+    throw new Error("Blocked artifact receipt did not preserve the expected deliverable and gate cause.");
   }
 
   console.log("Package smoke test passed: clean install, both binaries, CLI workflow, and skill install.");

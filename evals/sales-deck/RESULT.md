@@ -23,7 +23,7 @@ The candidate removed avoided voice and offer claims, grounded the narrative in 
 | Pack and DESIGN.md validation | Pass | `companymd lint examples/northstar` reports 0 errors and 0 warnings |
 | Skill structure and installation | Pass | Skill validator and install tests pass |
 | Before/after textual conformance | Pass | `companymd eval` reports `improved`, candidate conformant, no regressions |
-| Source and artifact traceability | Pass | `candidate.companymd.json` records portable paths and SHA-256 hashes |
+| Source and artifact traceability | Pass | `candidate.companymd.json` records portable paths, SHA-256 hashes, and machine-readable gate status |
 | PowerPoint export | Blocked | Required presentation workspace runtime loader was unavailable in the test environment |
 | Rendered-slide inspection | Blocked | Requires the exported PowerPoint |
 
