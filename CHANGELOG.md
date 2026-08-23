@@ -2,6 +2,14 @@
 
 All notable changes to Company.md will be documented here.
 
+## 0.3.1 — 2026-08-23
+
+- Fixes complete product overlays so inherited base documents validate against their own company id.
+- Adds a deterministic skill runner and forbids coding agents from selecting arbitrary npm-cache artifacts.
+- Treats the current VCS or working-directory root as a hard context-discovery boundary so agents cannot borrow sibling packs.
+- Removes nested Claude worktrees and installed skill references from adoption inventories.
+- Accepts top-level `companymd --help` and `companymd -h` as expected.
+
 ## 0.3.0 — 2026-08-23
 
 - Packages Company.md as an installable Codex plugin with guided starter prompts and synchronized skill sources.

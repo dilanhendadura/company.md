@@ -67,7 +67,10 @@ export function inspectForAdoption(input: string): AdoptionReport {
 function classifyCandidate(root: string, file: string): AdoptionCandidate | undefined {
   const relative = path.relative(root, file);
   const basename = path.basename(file).toLowerCase();
-  const normalized = relative.toLowerCase();
+  // Use the file name and its nearest directory as signals. Ancestor
+  // names often describe a checkout or worktree (for example
+  // `export-branding/.../README.md`) rather than the document itself.
+  const normalized = relative.toLowerCase().split(path.sep).slice(-2).join('/');
   const extension = path.extname(file).toLowerCase();
   if (!['.md', '.txt'].includes(extension)) return undefined;
 
@@ -122,6 +125,14 @@ function walk(root: string, directory: string, depth: number, maxDepth: number, 
     if (ignored.has(entry.name)) continue;
     const absolute = path.join(directory, entry.name);
     if (entry.isDirectory()) {
+      // Claude stores complete repository checkouts here. Traversing them
+      // duplicates the workspace inventory and lets worktree names pollute
+      // path-based classification.
+      if (entry.name === 'worktrees' && path.basename(directory) === '.claude') continue;
+      // Installed agent skills are executable guidance, not business source
+      // material. Including their README and references creates self-noise in
+      // the adoption inventory.
+      if (entry.name === 'skills' && ['.agents', '.claude'].includes(path.basename(directory))) continue;
       results.push(...walk(root, absolute, depth + 1, maxDepth, remaining - results.length));
     } else if (entry.isFile()) {
       results.push(absolute);

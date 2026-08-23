@@ -4,6 +4,24 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
+const HELP = `Create an artifact-level Company.md receipt.
+
+Usage:
+  node create-receipt.mjs --output <json> --deliverable <file> --profile <profile> --clearance <level> [options]
+
+Options:
+  --root <directory>       Store portable paths relative to this root
+  --source <file>          Governed source file; repeat as needed
+  --client-source <label>  Client input or source label; repeat as needed
+  --unresolved <item>      Unresolved fact or approval; repeat as needed
+  --help, -h               Show this help
+`;
+
+if (process.argv.slice(2).some((argument) => argument === '--help' || argument === '-h')) {
+  process.stdout.write(HELP);
+  process.exit(0);
+}
+
 function parseArgs(argv) {
   const values = new Map();
   const repeated = new Map();

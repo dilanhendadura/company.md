@@ -137,7 +137,10 @@ export function lintPack(input: string, options: LintPackOptions = {}): LintRepo
         documentIds.set(id, parsed.path);
       }
     }
-    if (loaded.role !== 'company' && rootId && parsed.meta.company !== rootId) {
+    // A base companion belongs to the company id declared by its own base
+    // pack, not to the more-specific overlay currently being linted. The
+    // overlay companion itself must still reference the overlay root id.
+    if (loaded.role !== 'company' && !loaded.inherited && rootId && parsed.meta.company !== rootId) {
       findings.push({
         ruleId: 'pack/company-reference',
         severity: 'error',
