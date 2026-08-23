@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
-  <title id="title">Company.md icon</title>
-  <rect width="64" height="64" rx="14" fill="#172033"/>
-  <path d="M19 17h20l8 8v22H19z" fill="#F7F8FA"/>
-  <path d="M39 17v10h8" fill="none" stroke="#1F6B5C" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M26 34h14M26 41h10" stroke="#1F6B5C" stroke-width="4" stroke-linecap="round"/>
-</svg>

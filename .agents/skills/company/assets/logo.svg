@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
-  <title id="title">Company.md</title>
-  <desc id="desc">A document containing approved company context</desc>
-  <rect width="512" height="512" rx="112" fill="#172033"/>
-  <path d="M152 112h160l64 64v224H152z" fill="#F7F8FA"/>
-  <path d="M312 112v80h64" fill="none" stroke="#1F6B5C" stroke-width="28" stroke-linejoin="round"/>
-  <path d="M208 248h112M208 304h112M208 360h72" stroke="#1F6B5C" stroke-width="28" stroke-linecap="round"/>
-</svg>
