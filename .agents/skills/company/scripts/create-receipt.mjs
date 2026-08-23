@@ -7,11 +7,18 @@ import path from 'node:path';
 const HELP = `Create an artifact-level Company.md receipt.
 
 Usage:
-  node create-receipt.mjs --output <json> (--deliverable <file> | --expected-deliverable <path>) --profile <profile> --clearance <level> [options]
+  node create-receipt.mjs --output <json> (--deliverable <file> | --expected-deliverable <path> | --remote-url <https-url>) --profile <profile> --clearance <level> [options]
 
 Options:
   --root <directory>       Store portable paths relative to this root
   --contract <name>        Artifact contract: generic/v1 or presentation/v1 (default: generic/v1)
+  --provider <id>          Remote provider id, for example google-slides
+  --revision <id>          Remote artifact revision id
+  --mime-type <type>       Remote artifact native MIME type
+  --title <text>           Optional remote artifact title
+  --export-mime-type <t>   Optional remote export MIME type
+  --export-size <bytes>     Optional remote export byte size
+  --export-sha256 <hash>   Optional SHA-256 for exported remote bytes
   --source <file>          Governed source file; repeat as needed
   --intermediate <file>    Generated intermediate file; repeat as needed
   --client-source <label>  Client input or source label; repeat as needed
@@ -31,7 +38,8 @@ function parseArgs(argv) {
   const repeated = new Map();
   const repeatable = new Set(['source', 'intermediate', 'client-source', 'unresolved', 'check', 'check-note']);
   const allowed = new Set([
-    'output', 'deliverable', 'expected-deliverable', 'profile', 'clearance', 'root', 'contract', ...repeatable,
+    'output', 'deliverable', 'expected-deliverable', 'remote-url', 'provider', 'revision', 'mime-type', 'title',
+    'export-mime-type', 'export-size', 'export-sha256', 'profile', 'clearance', 'root', 'contract', ...repeatable,
   ]);
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
@@ -133,15 +141,21 @@ const { values, repeated } = parseArgs(process.argv.slice(2));
 const output = values.get('output');
 const deliverable = values.get('deliverable');
 const expectedDeliverable = values.get('expected-deliverable');
+const remoteUrl = values.get('remote-url');
 const profile = values.get('profile');
 const clearance = values.get('clearance');
 const root = values.get('root') ? path.resolve(values.get('root')) : undefined;
 const contract = values.get('contract') ?? 'generic/v1';
 const verification = verificationChecks(repeated.get('check') ?? [], repeated.get('check-note') ?? []);
-if (!output || (!deliverable && !expectedDeliverable) || !profile || !clearance) {
-  throw new Error('Required: --output, exactly one of --deliverable or --expected-deliverable, --profile, and --clearance');
+const deliverableModes = [deliverable, expectedDeliverable, remoteUrl].filter(Boolean);
+if (!output || deliverableModes.length !== 1 || !profile || !clearance) {
+  throw new Error('Required: --output, exactly one of --deliverable, --expected-deliverable, or --remote-url, --profile, and --clearance');
 }
-if (deliverable && expectedDeliverable) throw new Error('Use exactly one of --deliverable or --expected-deliverable');
+const remoteOnlyOptions = ['provider', 'revision', 'mime-type', 'title', 'export-mime-type', 'export-size', 'export-sha256']
+  .filter((key) => values.has(key));
+if (!remoteUrl && remoteOnlyOptions.length > 0) {
+  throw new Error(`Remote-only options require --remote-url: ${remoteOnlyOptions.map((key) => `--${key}`).join(', ')}`);
+}
 if (!new Set(['core', 'customer', 'commercial', 'communications', 'visual', 'all']).has(profile)) {
   throw new Error(`Invalid --profile ${profile}`);
 }
@@ -152,6 +166,25 @@ if (!new Set(['generic/v1', 'presentation/v1']).has(contract)) {
   throw new Error(`Invalid --contract ${contract}; expected generic/v1 or presentation/v1`);
 }
 if (verification.length === 0) throw new Error('At least one --check verification gate is required');
+if (remoteUrl) {
+  let parsedRemote;
+  try {
+    parsedRemote = new URL(remoteUrl);
+  } catch {
+    throw new Error('--remote-url must be a valid HTTPS URL');
+  }
+  if (parsedRemote.protocol !== 'https:') throw new Error('--remote-url must use HTTPS');
+  const provider = values.get('provider');
+  const revision = values.get('revision');
+  const mimeType = values.get('mime-type');
+  if (!provider || !revision || !mimeType) throw new Error('Remote artifacts require --provider, --revision, and --mime-type');
+  if (!/^[a-z0-9][a-z0-9._-]{0,63}$/.test(provider)) throw new Error('--provider must be a stable lowercase identifier');
+  if (!validMimeType(mimeType)) throw new Error('--mime-type is invalid');
+  const required = ['artifact/access', 'artifact/revision'];
+  const present = new Set(verification.map((check) => check.id));
+  const missing = required.filter((id) => !present.has(id));
+  if (missing.length) throw new Error(`Remote artifacts are missing required verification gates: ${missing.join(', ')}`);
+}
 if (contract === 'presentation/v1') {
   if (profile !== 'visual') throw new Error('presentation/v1 requires --profile visual');
   const required = ['artifact/export', 'artifact/render', 'artifact/overflow', 'design/conformance'];
@@ -162,7 +195,11 @@ if (contract === 'presentation/v1') {
 if (expectedDeliverable && !verification.some((check) => ['fail', 'blocked'].includes(check.status))) {
   throw new Error('--expected-deliverable requires at least one failed or blocked verification gate');
 }
-const deliverableRecord = deliverable ? fileRecord(deliverable, root) : expectedFileRecord(expectedDeliverable, root);
+const deliverableRecord = deliverable
+  ? fileRecord(deliverable, root)
+  : expectedDeliverable
+    ? expectedFileRecord(expectedDeliverable, root)
+    : remoteRecord(values);
 
 const receipt = {
   schema: 'companymd/receipt/v1',
@@ -176,7 +213,7 @@ const receipt = {
   clientSources: repeated.get('client-source') ?? [],
   unresolved: repeated.get('unresolved') ?? [],
   ...(verification.length ? {
-    completion: completionStatus(verification, deliverableRecord.exists),
+    completion: completionStatus(verification, remoteUrl ? true : deliverableRecord.exists),
     verification,
   } : {}),
 };
@@ -185,3 +222,38 @@ const destination = path.resolve(output);
 fs.mkdirSync(path.dirname(destination), { recursive: true });
 fs.writeFileSync(destination, `${JSON.stringify(receipt, null, 2)}\n`, 'utf8');
 process.stdout.write(`${destination}\n`);
+
+function remoteRecord(values) {
+  const exportMimeType = values.get('export-mime-type');
+  const exportSizeText = values.get('export-size');
+  const exportSha256 = values.get('export-sha256');
+  const exportOptions = [exportMimeType, exportSizeText, exportSha256].filter(Boolean);
+  if (exportOptions.length > 0 && (!exportMimeType || !exportSizeText)) {
+    throw new Error('Remote export metadata requires --export-mime-type and --export-size');
+  }
+  let remoteExport;
+  if (exportMimeType && exportSizeText) {
+    if (!validMimeType(exportMimeType)) throw new Error('--export-mime-type is invalid');
+    const size = Number(exportSizeText);
+    if (!Number.isSafeInteger(size) || size <= 0) throw new Error('--export-size must be a positive integer');
+    if (exportSha256 && !/^[a-f0-9]{64}$/.test(exportSha256)) throw new Error('--export-sha256 must be a lowercase SHA-256 hash');
+    remoteExport = {
+      mimeType: exportMimeType,
+      size,
+      ...(exportSha256 ? { sha256: exportSha256 } : {}),
+    };
+  }
+  return {
+    kind: 'remote',
+    url: values.get('remote-url'),
+    provider: values.get('provider'),
+    revisionId: values.get('revision'),
+    mimeType: values.get('mime-type'),
+    ...(values.get('title') ? { title: values.get('title') } : {}),
+    ...(remoteExport ? { export: remoteExport } : {}),
+  };
+}
+
+function validMimeType(value) {
+  return /^[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+-]+$/i.test(value);
+}

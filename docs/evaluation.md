@@ -23,7 +23,9 @@ After generation:
 - make the narrowest source, skill, or tooling change supported by the observed failure;
 - rerun from a clean session.
 
-For file-based deliverables, record required artifact gates in the sibling `companymd/receipt/v1` file. Use stable ids and one of `pass`, `fail`, `blocked`, or `not-run`; do not hide a missing export or render behind a prose-only unresolved note. Declare `presentation/v1` for binary decks, then run `companymd artifact verify <receipt> --root <repository-root>` so hashes and contract gates are checked rather than merely trusted.
+For local deliverables, record required artifact gates in the sibling `companymd/receipt/v1` file. Use stable ids and one of `pass`, `fail`, `blocked`, or `not-run`; do not hide a missing export or render behind a prose-only unresolved note. Declare `presentation/v1` for decks, then run `companymd artifact verify <receipt> --root <repository-root>` so hashes and contract gates are checked rather than merely trusted.
+
+Native cloud artifacts such as Google Slides use the same receipt contract with a remote deliverable record: HTTPS URL, stable provider id, immutable revision id, native MIME type, and optional export metadata. Remote receipts must include `artifact/access` and `artifact/revision` gates. Presentation gates still apply, so a cloud deck is not complete until export, full-slide render, overflow review, and design conformance have all passed.
 
 For text companions, run the deterministic comparison directly:
 

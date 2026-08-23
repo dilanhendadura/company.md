@@ -153,6 +153,9 @@ companymd lint ./company-context --strict
 # Recompute every recorded hash and enforce artifact-specific completion gates
 companymd artifact verify ./deck.pptx.companymd-receipt.json --root . --format pretty
 
+# Native cloud artifacts use their HTTPS URL, provider, and immutable revision id
+# in the receipt; remote access and revision checks are mandatory gates.
+
 # Give an agent only the context required for visual work
 companymd context ./company-context \
   --profile visual \
@@ -173,7 +176,7 @@ The checked-in [sales-deck evaluation](evals/sales-deck/SCENARIO.md) compares a 
 | --- | --- |
 | Business + DESIGN.md validation | Pass: 0 errors, 0 warnings |
 | Textual conformance rubric | Pass: every baseline failure fixed, 0 regressions |
-| Source and artifact traceability | Pass: portable paths, SHA-256 hashes, and machine-readable artifact gates |
+| Source and artifact traceability | Pass: portable file hashes plus versioned native-cloud artifacts and machine-readable gates |
 | Package install and CLI workflow | Pass: both binaries in a clean environment |
 | Public Codex plugin and `$company` routing | Pass: isolated install selected the packaged skill and enforced a prohibited claim |
 | PowerPoint export and rendered-slide QA | Open gate: presentation runtime unavailable in the recorded run |

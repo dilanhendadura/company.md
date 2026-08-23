@@ -14,11 +14,34 @@ export const PRESENTATION_REQUIRED_GATES = [
   'design/conformance',
 ] as const;
 
+export const REMOTE_REQUIRED_GATES = [
+  'artifact/access',
+  'artifact/revision',
+] as const;
+
 interface ArtifactFileRecord {
   path: string;
   exists: boolean;
   sha256: string | null;
 }
+
+interface ArtifactRemoteExport {
+  mimeType: string;
+  size: number;
+  sha256?: string | null;
+}
+
+interface ArtifactRemoteRecord {
+  kind: 'remote';
+  url: string;
+  provider: string;
+  revisionId: string;
+  mimeType: string;
+  title?: string;
+  export?: ArtifactRemoteExport;
+}
+
+type ArtifactDeliverable = ArtifactFileRecord | ArtifactRemoteRecord;
 
 export interface ArtifactGate {
   id: string;
@@ -103,9 +126,11 @@ export function verifyArtifactReceipt(receiptFile: string, options: VerifyArtifa
     add('receipt/legacy-contract', 'warning', 'Receipt has no explicit artifact contract; regenerate it to enable contract-specific verification.', absoluteReceipt);
   }
 
-  const deliverable = fileRecord(parsed.deliverable);
+  const deliverable = artifactDeliverable(parsed.deliverable);
   if (!deliverable) {
-    add('receipt/deliverable', 'error', 'Receipt deliverable must include a path, exists flag, and SHA-256 value.', absoluteReceipt);
+    add('receipt/deliverable', 'error', 'Receipt deliverable must be a local file record or a versioned HTTPS remote artifact.', absoluteReceipt);
+  } else if (isRemoteDeliverable(deliverable)) {
+    verifyRemoteDeliverable(deliverable, contract, add);
   } else {
     verifyFileRecord(deliverable, 'deliverable', root, add);
     if (contract === 'presentation/v1' && deliverable.exists === true) {
@@ -146,11 +171,17 @@ export function verifyArtifactReceipt(receiptFile: string, options: VerifyArtifa
       }
     }
 
+    if (deliverable && isRemoteDeliverable(deliverable)) {
+      for (const required of REMOTE_REQUIRED_GATES) {
+        if (!seen.has(required)) add('gate/missing', 'error', `Remote artifacts require verification gate ${required}.`, required);
+      }
+    }
+
     const completion = artifactCompletion(parsed.completion);
     if (!completion) {
       add('receipt/completion', 'error', 'Receipt completion must be complete, failed, blocked, or incomplete.', absoluteReceipt);
     } else if (deliverable) {
-      const expected = deriveArtifactCompletion(gates, deliverable.exists === true);
+      const expected = deriveArtifactCompletion(gates, deliverableAvailable(deliverable));
       if (completion !== expected) {
         add('completion/mismatch', 'error', `Receipt says ${completion}, but its deliverable and gates derive ${expected}.`, absoluteReceipt);
       }
@@ -164,6 +195,48 @@ export function verifyArtifactReceipt(receiptFile: string, options: VerifyArtifa
     artifactCompletion(parsed.completion),
     findings,
   );
+}
+
+function verifyRemoteDeliverable(
+  deliverable: ArtifactRemoteRecord,
+  contract: ArtifactVerificationReport['contract'],
+  add: (ruleId: string, severity: ArtifactVerificationFinding['severity'], message: string, path?: string) => void,
+): void {
+  let parsedUrl: URL | undefined;
+  try {
+    parsedUrl = new URL(deliverable.url);
+  } catch {
+    add('remote/url', 'error', 'Remote artifact URL is invalid.', deliverable.url);
+  }
+  if (parsedUrl && parsedUrl.protocol !== 'https:') {
+    add('remote/url', 'error', 'Remote artifact URL must use HTTPS.', deliverable.url);
+  }
+  if (!/^[a-z0-9][a-z0-9._-]{0,63}$/.test(deliverable.provider)) {
+    add('remote/provider', 'error', 'Remote artifact provider must be a stable lowercase identifier.', deliverable.provider);
+  }
+  if (deliverable.revisionId.trim().length === 0) {
+    add('remote/revision', 'error', 'Remote artifact revisionId must be non-empty.', deliverable.url);
+  }
+  if (!validMimeType(deliverable.mimeType)) {
+    add('remote/mime-type', 'error', 'Remote artifact mimeType is invalid.', deliverable.mimeType);
+  }
+  if (deliverable.export) {
+    if (!validMimeType(deliverable.export.mimeType)) {
+      add('remote/export-mime-type', 'error', 'Remote artifact export mimeType is invalid.', deliverable.export.mimeType);
+    }
+    if (!Number.isSafeInteger(deliverable.export.size) || deliverable.export.size <= 0) {
+      add('remote/export-size', 'error', 'Remote artifact export size must be a positive integer.', String(deliverable.export.size));
+    }
+    if (deliverable.export.sha256 !== undefined && deliverable.export.sha256 !== null && !isSha256(deliverable.export.sha256)) {
+      add('remote/export-hash', 'error', 'Remote artifact export SHA-256 is invalid.', deliverable.url);
+    }
+  }
+  if (contract === 'presentation/v1') {
+    const candidateMimeTypes = [deliverable.mimeType, deliverable.export?.mimeType].filter((value): value is string => Boolean(value));
+    if (!candidateMimeTypes.some(isPresentationMimeType)) {
+      add('presentation/remote-format', 'error', 'Remote presentation must declare a native or exported presentation MIME type.', deliverable.url);
+    }
+  }
 }
 
 export function formatArtifactVerificationReport(report: ArtifactVerificationReport): string {
@@ -273,6 +346,51 @@ function fileRecord(value: unknown): ArtifactFileRecord | undefined {
   return { path: value.path, exists: value.exists, sha256: value.sha256 as string | null };
 }
 
+function artifactDeliverable(value: unknown): ArtifactDeliverable | undefined {
+  const local = fileRecord(value);
+  if (local) return local;
+  if (
+    !isRecord(value)
+    || value.kind !== 'remote'
+    || typeof value.url !== 'string'
+    || typeof value.provider !== 'string'
+    || typeof value.revisionId !== 'string'
+    || typeof value.mimeType !== 'string'
+    || (value.title !== undefined && (typeof value.title !== 'string' || value.title.length === 0))
+  ) return undefined;
+  let remoteExport: ArtifactRemoteExport | undefined;
+  if (value.export !== undefined) {
+    if (
+      !isRecord(value.export)
+      || typeof value.export.mimeType !== 'string'
+      || typeof value.export.size !== 'number'
+      || (value.export.sha256 !== undefined && value.export.sha256 !== null && typeof value.export.sha256 !== 'string')
+    ) return undefined;
+    remoteExport = {
+      mimeType: value.export.mimeType,
+      size: value.export.size,
+      ...(value.export.sha256 !== undefined ? { sha256: value.export.sha256 as string | null } : {}),
+    };
+  }
+  return {
+    kind: 'remote',
+    url: value.url,
+    provider: value.provider,
+    revisionId: value.revisionId,
+    mimeType: value.mimeType,
+    ...(typeof value.title === 'string' ? { title: value.title } : {}),
+    ...(remoteExport ? { export: remoteExport } : {}),
+  };
+}
+
+function isRemoteDeliverable(deliverable: ArtifactDeliverable): deliverable is ArtifactRemoteRecord {
+  return 'kind' in deliverable && deliverable.kind === 'remote';
+}
+
+function deliverableAvailable(deliverable: ArtifactDeliverable): boolean {
+  return isRemoteDeliverable(deliverable) || deliverable.exists === true;
+}
+
 function fileRecordArray(value: unknown): ArtifactFileRecord[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const records = value.map(fileRecord);
@@ -308,6 +426,20 @@ function artifactCompletion(value: unknown): ArtifactCompletion | undefined {
 
 function isSha256(value: unknown): value is string {
   return typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
+}
+
+function validMimeType(value: string): boolean {
+  return /^[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+-]+$/i.test(value);
+}
+
+function isPresentationMimeType(value: string): boolean {
+  return new Set([
+    'application/vnd.google-apps.presentation',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.oasis.opendocument.presentation',
+    'application/pdf',
+  ]).has(value.toLowerCase());
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

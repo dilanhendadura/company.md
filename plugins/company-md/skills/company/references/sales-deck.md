@@ -21,6 +21,8 @@ Create the sibling Company.md receipt with `--contract presentation/v1` and reco
 - `artifact/overflow=pass|fail|blocked|not-run`;
 - `design/conformance=pass|fail|blocked|not-run`.
 
+For a native cloud deck, record its HTTPS URL, provider, immutable revision id, native MIME type, and export metadata with the remote options. Also record `artifact/access` and `artifact/revision`; a share link without a revision and rendered-slide inspection is not a complete deck artifact.
+
 All four gates must be `pass` for a binary deck to be called complete. If an artifact runtime is unavailable, do not substitute a different format silently. Create the receipt with `--expected-deliverable <requested-path>`, record any storyboard with `--intermediate <path>`, mark the affected gates `blocked`, attach the cause with `--check-note <id=text>`, and name the missing capability. Return a storyboard only when the user requested one or accepts it as a fallback.
 
 After receipt creation, run `companymd artifact verify <receipt> --root <repository-root> --format pretty` through the skill runner. Do not hand off the deck or call it complete unless verification succeeds. The verifier must recompute every recorded source, intermediate, and deliverable hash; manually inspecting the JSON is not equivalent.

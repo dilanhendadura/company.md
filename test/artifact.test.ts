@@ -152,3 +152,65 @@ test('presentation contract validates known binary formats and rejects unsupport
   assert.ok(invalidKey.findings.some((finding) => finding.ruleId === 'contract/profile'));
   assert.ok(invalidKey.findings.some((finding) => finding.ruleId === 'gate/missing'));
 });
+
+test('artifact verifier accepts a versioned remote Google Slides presentation', () => {
+  const { root, receipt } = fixture();
+  const report = verifyArtifactReceipt(writeReceipt(root, 'remote-slides.json', {
+    ...receipt,
+    contract: 'presentation/v1',
+    profile: 'visual',
+    deliverable: {
+      kind: 'remote',
+      url: 'https://docs.google.com/presentation/d/example/edit',
+      provider: 'google-slides',
+      revisionId: 'revision-42',
+      mimeType: 'application/vnd.google-apps.presentation',
+      title: 'Enterprise evaluation deck',
+      export: {
+        mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        size: 64501,
+      },
+    },
+    verification: [
+      { id: 'artifact/access', status: 'pass' },
+      { id: 'artifact/revision', status: 'pass' },
+      { id: 'artifact/export', status: 'pass' },
+      { id: 'artifact/render', status: 'pass' },
+      { id: 'artifact/overflow', status: 'pass' },
+      { id: 'design/conformance', status: 'pass' },
+    ],
+  }), { root });
+  assert.equal(report.valid, true);
+  assert.equal(report.completion, 'complete');
+});
+
+test('artifact verifier rejects unversioned or malformed remote artifacts', () => {
+  const { root, receipt } = fixture();
+  const report = verifyArtifactReceipt(writeReceipt(root, 'bad-remote.json', {
+    ...receipt,
+    deliverable: {
+      kind: 'remote',
+      url: 'http://example.com/artifact',
+      provider: 'Google Slides',
+      revisionId: '',
+      mimeType: 'invalid',
+      export: {
+        mimeType: 'invalid',
+        size: 0,
+        sha256: 'bad',
+      },
+    },
+    verification: [{ id: 'content/conformance', status: 'pass' }],
+  }), { root });
+  assert.equal(report.valid, false);
+  for (const ruleId of [
+    'remote/url',
+    'remote/provider',
+    'remote/revision',
+    'remote/mime-type',
+    'remote/export-mime-type',
+    'remote/export-size',
+    'remote/export-hash',
+    'gate/missing',
+  ]) assert.ok(report.findings.some((finding) => finding.ruleId === ruleId), ruleId);
+});

@@ -2,6 +2,13 @@
 
 All notable changes to Company.md will be documented here.
 
+## 0.3.4 — 2026-08-23
+
+- Extends artifact receipts to native cloud deliverables with an HTTPS URL, stable provider id, immutable revision id, native MIME type, and optional export metadata.
+- Requires `artifact/access` and `artifact/revision` gates for every remote artifact while preserving the full presentation export, render, overflow, and design contract.
+- Adds remote-artifact creation options to the packaged `$company` receipt tool and keeps local file and blocked expected-deliverable workflows backward compatible.
+- Verifies remote Google Slides receipts, malformed metadata, missing remote gates, and the end-to-end receipt script in the automated suite.
+
 ## 0.3.3 — 2026-08-23
 
 - Adds `companymd artifact verify` to recompute deliverable, source, and intermediate hashes and reject stale or escaped paths.

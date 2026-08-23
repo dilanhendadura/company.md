@@ -197,6 +197,54 @@ test('artifact receipt tool records completed and expected blocked deliverables'
   assert.equal(fakeVerification.valid, false);
   assert.ok(fakeVerification.findings.some((finding) => finding.ruleId === 'presentation/format'));
 
+  const remoteReceipt = path.join(target, 'remote-slides.companymd-receipt.json');
+  const remotePresentation = run(
+    '--root', target,
+    '--output', remoteReceipt,
+    '--remote-url', 'https://docs.google.com/presentation/d/example/edit',
+    '--provider', 'google-slides',
+    '--revision', 'revision-42',
+    '--mime-type', 'application/vnd.google-apps.presentation',
+    '--title', 'Remote deck',
+    '--export-mime-type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    '--export-size', '64501',
+    '--profile', 'visual',
+    '--clearance', 'internal',
+    '--contract', 'presentation/v1',
+    '--source', source,
+    '--check', 'artifact/access=pass',
+    '--check', 'artifact/revision=pass',
+    '--check', 'artifact/export=pass',
+    '--check', 'artifact/render=pass',
+    '--check', 'artifact/overflow=pass',
+    '--check', 'design/conformance=pass',
+  );
+  assert.equal(remotePresentation.status, 0, remotePresentation.stderr);
+  const remote = JSON.parse(fs.readFileSync(remoteReceipt, 'utf8')) as {
+    completion: string;
+    deliverable: { kind: string; provider: string; revisionId: string; export: { size: number } };
+  };
+  assert.equal(remote.completion, 'complete');
+  assert.equal(remote.deliverable.kind, 'remote');
+  assert.equal(remote.deliverable.provider, 'google-slides');
+  assert.equal(remote.deliverable.revisionId, 'revision-42');
+  assert.equal(remote.deliverable.export.size, 64501);
+  assert.equal(verifyArtifactReceipt(remoteReceipt, { root: target }).valid, true);
+
+  const missingRemoteGate = run(
+    '--root', target,
+    '--output', path.join(target, 'remote-missing-gate.json'),
+    '--remote-url', 'https://docs.google.com/presentation/d/example/edit',
+    '--provider', 'google-slides',
+    '--revision', 'revision-42',
+    '--mime-type', 'application/vnd.google-apps.presentation',
+    '--profile', 'visual',
+    '--clearance', 'internal',
+    '--check', 'artifact/access=pass',
+  );
+  assert.notEqual(missingRemoteGate.status, 0);
+  assert.match(missingRemoteGate.stderr, /missing required verification gates/);
+
   const missingPresentationGate = run(
     '--root', target,
     '--output', path.join(target, 'missing-gate.json'),
@@ -220,6 +268,18 @@ test('artifact receipt tool records completed and expected blocked deliverables'
   );
   assert.notEqual(unknownOption.status, 0);
   assert.match(unknownOption.stderr, /Unknown option: --typo/);
+
+  const remoteOptionWithoutRemote = run(
+    '--root', target,
+    '--output', path.join(target, 'local-with-remote-option.json'),
+    '--deliverable', deliverable,
+    '--provider', 'google-slides',
+    '--profile', 'visual',
+    '--clearance', 'internal',
+    '--check', 'artifact/export=pass',
+  );
+  assert.notEqual(remoteOptionWithoutRemote.status, 0);
+  assert.match(remoteOptionWithoutRemote.stderr, /Remote-only options require --remote-url/);
 
   const invalid = run(
     '--root', target,

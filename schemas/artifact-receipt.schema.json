@@ -28,7 +28,12 @@
     "completion": {
       "enum": ["complete", "failed", "blocked", "incomplete"]
     },
-    "deliverable": { "$ref": "#/$defs/deliverableRecord" },
+    "deliverable": {
+      "oneOf": [
+        { "$ref": "#/$defs/deliverableRecord" },
+        { "$ref": "#/$defs/remoteDeliverableRecord" }
+      ]
+    },
     "sources": {
       "type": "array",
       "items": { "$ref": "#/$defs/fileRecord" }
@@ -111,7 +116,13 @@
       "then": {
         "properties": {
           "deliverable": {
-            "properties": { "exists": { "const": true } }
+            "oneOf": [
+              {
+                "required": ["exists"],
+                "properties": { "exists": { "const": true } }
+              },
+              { "$ref": "#/$defs/remoteDeliverableRecord" }
+            ]
           },
           "verification": {
             "minItems": 1,
@@ -119,6 +130,37 @@
               "properties": { "status": { "const": "pass" } },
               "required": ["status"]
             }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "deliverable": {
+            "required": ["kind"],
+            "properties": { "kind": { "const": "remote" } }
+          }
+        }
+      },
+      "then": {
+        "required": ["completion", "verification"],
+        "properties": {
+          "verification": {
+            "allOf": [
+              {
+                "contains": {
+                  "required": ["id"],
+                  "properties": { "id": { "const": "artifact/access" } }
+                }
+              },
+              {
+                "contains": {
+                  "required": ["id"],
+                  "properties": { "id": { "const": "artifact/revision" } }
+                }
+              }
+            ]
           }
         }
       }
@@ -201,6 +243,43 @@
         "path": { "type": "string", "minLength": 1 },
         "exists": { "const": true },
         "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "additionalProperties": false
+    },
+    "remoteDeliverableRecord": {
+      "type": "object",
+      "required": ["kind", "url", "provider", "revisionId", "mimeType"],
+      "properties": {
+        "kind": { "const": "remote" },
+        "url": { "type": "string", "format": "uri", "pattern": "^https://" },
+        "provider": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
+        },
+        "revisionId": { "type": "string", "minLength": 1 },
+        "mimeType": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$"
+        },
+        "title": { "type": "string", "minLength": 1 },
+        "export": {
+          "type": "object",
+          "required": ["mimeType", "size"],
+          "properties": {
+            "mimeType": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$"
+            },
+            "size": { "type": "integer", "minimum": 1 },
+            "sha256": {
+              "oneOf": [
+                { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+                { "type": "null" }
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
       },
       "additionalProperties": false
     }
