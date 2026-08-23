@@ -1,6 +1,6 @@
 {
   "name": "company.md",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "An open, agent-readable company context standard for enterprise AI workspaces.",
   "homepage": "https://github.com/dilanhendadura/company.md#readme",
   "repository": {
@@ -35,10 +35,13 @@
     "templates",
     "schemas",
     "docs",
+    "assets/company-md-hero.svg",
     "integrations",
     "examples/northstar",
     "evals",
     "SPEC.md",
+    "GOVERNANCE.md",
+    "ROADMAP.md",
     "README.md",
     "CHANGELOG.md",
     "CONTRIBUTING.md",
@@ -49,10 +52,15 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "check": "npm run typecheck && npm test && npm run check:example",
+    "check": "npm run typecheck && npm test && npm run check:example && npm run check:plugin",
     "check:example": "node dist/cli.js lint examples/northstar",
+    "check:plugin": "node scripts/sync-plugin-skill.mjs --check && node scripts/validate-distribution.mjs",
     "dev": "tsx src/cli.ts",
+    "prepare": "npm run build",
+    "sync:plugin": "node scripts/sync-plugin-skill.mjs",
     "test": "npm run build && tsx --test test/*.test.ts",
+    "test:coverage": "npm run build && node --import tsx --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-branches=65 --test-coverage-functions=85 test/*.test.ts",
+    "test:package": "node scripts/smoke-package.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
