@@ -47,6 +47,7 @@ export interface ArtifactGate {
   id: string;
   status: ArtifactGateStatus;
   note?: string;
+  evidence?: ArtifactFileRecord[];
 }
 
 export interface ArtifactVerificationFinding {
@@ -59,6 +60,7 @@ export interface ArtifactVerificationFinding {
 export interface ArtifactVerificationReport {
   schema: 'companymd/artifact-verification/v1';
   valid: boolean;
+  verificationMode: 'offline-integrity';
   receipt: string;
   root: string;
   contract: ArtifactContract | 'legacy/v1' | 'unknown';
@@ -106,10 +108,10 @@ export function verifyArtifactReceipt(receiptFile: string, options: VerifyArtifa
   if (typeof parsed.generatedAt !== 'string' || Number.isNaN(Date.parse(parsed.generatedAt))) {
     add('receipt/generated-at', 'error', 'Receipt generatedAt must be an ISO-compatible date-time.', absoluteReceipt);
   }
-  if (!['core', 'customer', 'commercial', 'communications', 'visual', 'all'].includes(String(parsed.profile))) {
+  if (typeof parsed.profile !== 'string' || !['core', 'customer', 'commercial', 'communications', 'visual', 'all'].includes(parsed.profile)) {
     add('receipt/profile', 'error', 'Receipt profile is missing or unsupported.', absoluteReceipt);
   }
-  if (!['public', 'internal', 'confidential', 'restricted'].includes(String(parsed.clearance))) {
+  if (typeof parsed.clearance !== 'string' || !['public', 'internal', 'confidential', 'restricted'].includes(parsed.clearance)) {
     add('receipt/clearance', 'error', 'Receipt clearance is missing or unsupported.', absoluteReceipt);
   }
   if (!stringArray(parsed.clientSources)) {
@@ -145,6 +147,18 @@ export function verifyArtifactReceipt(receiptFile: string, options: VerifyArtifa
     sources.forEach((source, index) => verifyFileRecord(source, `sources/${index}`, root, add));
   }
 
+  const completePresentation = contract === 'presentation/v1' && parsed.completion === 'complete';
+  if (parsed.context !== undefined) {
+    verifyContextBinding(parsed, root, completePresentation, add);
+  } else if (completePresentation) {
+    add('context/required', 'error', 'A completed presentation requires a bound context receipt, including its design and any required template.', absoluteReceipt);
+  }
+  if (parsed.attachments !== undefined) {
+    const attachments = fileRecordArray(parsed.attachments);
+    if (!attachments) add('receipt/attachments', 'error', 'Receipt attachments must be an array of file records.', absoluteReceipt);
+    else attachments.forEach((attachment, index) => verifyFileRecord(attachment, `attachments/${index}`, root, add));
+  }
+
   const intermediates = parsed.intermediates === undefined ? [] : fileRecordArray(parsed.intermediates);
   if (!intermediates) {
     add('receipt/intermediates', 'error', 'Receipt intermediates must be an array of file records.', absoluteReceipt);
@@ -160,6 +174,7 @@ export function verifyArtifactReceipt(receiptFile: string, options: VerifyArtifa
     for (const gate of gates) {
       if (seen.has(gate.id)) add('gate/duplicate', 'error', `Verification gate ${gate.id} appears more than once.`, gate.id);
       seen.add(gate.id);
+      if (gate.evidence) gate.evidence.forEach((record, index) => verifyEvidence(record, gate, deliverable, root, add, `${gate.id}/evidence/${index}`));
     }
 
     if (contract === 'presentation/v1') {
@@ -174,6 +189,17 @@ export function verifyArtifactReceipt(receiptFile: string, options: VerifyArtifa
     if (deliverable && isRemoteDeliverable(deliverable)) {
       for (const required of REMOTE_REQUIRED_GATES) {
         if (!seen.has(required)) add('gate/missing', 'error', `Remote artifacts require verification gate ${required}.`, required);
+      }
+      add('remote/offline', 'warning', 'This verifier checks recorded metadata and hashed provider observations offline. It does not confirm current access, the current revision, or the authenticity of the caller\'s provider observation.', absoluteReceipt);
+    }
+
+    const evidenceRequired = [
+      ...(completePresentation ? ['artifact/render', 'artifact/overflow', 'design/conformance'] : []),
+      ...(parsed.completion === 'complete' && deliverable && isRemoteDeliverable(deliverable) ? REMOTE_REQUIRED_GATES : []),
+    ];
+    for (const id of evidenceRequired) {
+      if (!gates.find((gate) => gate.id === id)?.evidence?.length) {
+        add('evidence/required', 'error', `Completed artifacts require hashed evidence for ${id}. A declared pass alone is insufficient.`, id);
       }
     }
 
@@ -195,6 +221,132 @@ export function verifyArtifactReceipt(receiptFile: string, options: VerifyArtifa
     artifactCompletion(parsed.completion),
     findings,
   );
+}
+
+type AddFinding = (ruleId: string, severity: ArtifactVerificationFinding['severity'], message: string, path?: string) => void;
+
+function readEvidenceJson(record: ArtifactFileRecord, label: string, root: string, add: AddFinding): Record<string, unknown> | undefined {
+  verifyFileRecord(record, label, root, add);
+  if (!record.exists) {
+    add('evidence/absent', 'error', `${label} must exist.`, record.path);
+    return undefined;
+  }
+  const absolute = resolveInsideRoot(record.path, root);
+  if (!absolute) return undefined;
+  try {
+    const parsed: unknown = JSON.parse(fs.readFileSync(absolute, 'utf8'));
+    if (!isRecord(parsed)) throw new Error('Expected a JSON object');
+    return parsed;
+  } catch (error) {
+    add('evidence/read', 'error', `${label}: ${error instanceof Error ? error.message : String(error)}`, record.path);
+    return undefined;
+  }
+}
+
+function verifyContextBinding(receipt: Record<string, unknown>, root: string, requirePresentation: boolean, add: AddFinding): void {
+  const record = fileRecord(receipt.context);
+  if (!record || !isRecord(receipt.context)) {
+    add('context/record', 'error', 'context must record the original context receipt path and SHA-256.');
+    return;
+  }
+  const context = readEvidenceJson(record, 'context receipt', root, add);
+  if (!context) return;
+  if (context.schema !== 'companymd/context-receipt/v1') add('context/schema', 'error', 'Bound context schema must be companymd/context-receipt/v1.', record.path);
+  if (typeof context.generatedAt !== 'string' || Number.isNaN(Date.parse(context.generatedAt))) add('context/generated-at', 'error', 'Bound context needs a valid generatedAt.', record.path);
+  if (context.profile !== receipt.profile || context.clearance !== receipt.clearance) add('context/profile-clearance', 'error', 'Bound context profile and clearance must match the artifact receipt.', record.path);
+  if (typeof context.subject !== 'string' || !context.subject.trim() || context.subject !== receipt.context.subject) add('context/subject', 'error', 'Artifact subject must match the bound context subject.', record.path);
+  if (context.artifact !== receipt.context.artifact || (requirePresentation && context.artifact !== undefined && context.artifact !== 'presentation')) add('context/artifact', 'error', 'Artifact format must match the bound context artifact.', record.path);
+  const contextPath = resolveInsideRoot(record.path, root);
+  const sourceRoot = contextPath && typeof context.sourceRoot === 'string' && context.sourceRoot.length > 0 && !path.isAbsolute(context.sourceRoot)
+    ? resolveInsideRoot(path.resolve(path.dirname(contextPath), context.sourceRoot), root) : undefined;
+  if (!sourceRoot || !fs.existsSync(sourceRoot) || !fs.statSync(sourceRoot).isDirectory()) {
+    add('context/source-root', 'error', 'Context sourceRoot must resolve to a directory inside the verification root.', record.path);
+    return;
+  }
+  const sourceRoles = ['company', 'customer', 'offer', 'voice', 'design'];
+  const attachmentRoles = ['registry', 'template', 'templateSkill'];
+  const resolved = new Map<string, Array<{ absolute: string; role: string }>>();
+  for (const category of ['sources', 'attachments'] as const) {
+    const expected = context[category];
+    const copied = receipt[category];
+    if (!Array.isArray(expected) || !Array.isArray(copied)) {
+      add('context/files', 'error', `Both receipts must contain ${category} arrays.`, record.path);
+      continue;
+    }
+    const expectedKeys: string[] = [];
+    const actualKeys: string[] = [];
+    const entries: Array<{ absolute: string; role: string }> = [];
+    for (const entry of expected) {
+      if (!isRecord(entry) || typeof entry.file !== 'string' || !entry.file || path.isAbsolute(entry.file)
+        || typeof entry.role !== 'string' || !(category === 'sources' ? sourceRoles : attachmentRoles).includes(entry.role) || !isSha256(entry.sha256)) {
+        add('context/file-record', 'error', `Invalid ${category} record in bound context.`, record.path);
+        continue;
+      }
+      const absolute = resolveInsideRoot(path.resolve(sourceRoot, entry.file), root);
+      if (!absolute) {
+        add('context/outside-root', 'error', `Context source escapes verification root: ${entry.file}.`, entry.file);
+        continue;
+      }
+      const levels = ['public', 'internal', 'confidential', 'restricted'];
+      if (category === 'sources' && (typeof entry.classification !== 'string' || typeof context.clearance !== 'string'
+        || !levels.includes(entry.classification) || levels.indexOf(entry.classification) > levels.indexOf(context.clearance))) {
+        add('context/classification', 'error', `Source classification is invalid or exceeds context clearance: ${entry.file}.`, entry.file);
+      }
+      verifyFileRecord({ path: absolute, exists: true, sha256: entry.sha256 }, `context/${category}`, root, add);
+      entries.push({ absolute, role: entry.role });
+      expectedKeys.push(JSON.stringify([absolute, entry.role, entry.sha256, entry.classification, entry.status]));
+    }
+    for (const entry of copied) {
+      if (!isRecord(entry) || typeof entry.path !== 'string' || entry.exists !== true) {
+        add('context/file-record', 'error', `Invalid copied ${category} record.`, record.path);
+        continue;
+      }
+      actualKeys.push(JSON.stringify([resolveInsideRoot(entry.path, root), entry.role, entry.sha256, entry.classification, entry.status]));
+    }
+    if (new Set(expectedKeys).size !== expectedKeys.length) add('context/duplicate-source', 'error', `Bound context repeats a ${category} record.`, record.path);
+    if (JSON.stringify(expectedKeys.sort()) !== JSON.stringify(actualKeys.sort())) add('context/sources-mismatch', 'error', `Artifact ${category} must exactly match the paths, roles and hashes in its bound context.`, record.path);
+    resolved.set(category, entries);
+  }
+  if (requirePresentation) {
+    for (const role of sourceRoles) {
+      if (!resolved.get('sources')?.some((entry) => entry.role === role)) add('context/missing-role', 'error', `Completed presentations require a ${role} source in the bound context.`, role);
+    }
+  }
+  if (context.binding !== undefined) {
+    if (!isRecord(context.binding)) add('context/binding', 'error', 'Context artifact binding must be an object.', record.path);
+    else for (const role of ['design', 'template', 'templateSkill']) {
+      const file = context.binding[role];
+      if (file === undefined) continue;
+      const absolute = typeof file === 'string' && !path.isAbsolute(file) ? resolveInsideRoot(path.resolve(sourceRoot, file), root) : undefined;
+      if (!absolute || !resolved.get(role === 'design' ? 'sources' : 'attachments')?.some((entry) => entry.role === role && entry.absolute === absolute)) {
+        add('context/binding-missing', 'error', `Required ${role} binding is missing from the bound files.`, role);
+      }
+    }
+  }
+}
+
+function verifyEvidence(record: ArtifactFileRecord, gate: ArtifactGate, deliverable: ArtifactDeliverable | undefined, root: string, add: AddFinding, label: string): void {
+  const evidence = readEvidenceJson(record, label, root, add);
+  if (!evidence) return;
+  if (evidence.schema !== 'companymd/evidence/v1' || evidence.gate !== gate.id
+    || typeof evidence.method !== 'string' || !['measured', 'attestation', 'provider'].includes(evidence.method)
+    || typeof evidence.observedAt !== 'string' || Number.isNaN(Date.parse(evidence.observedAt))
+    || typeof evidence.details !== 'string' || !evidence.details.trim()) {
+    add('evidence/schema', 'error', 'Evidence needs schema companymd/evidence/v1, matching gate, method, observedAt and non-empty details.', record.path);
+  }
+  if (REMOTE_REQUIRED_GATES.some((id) => id === gate.id) && evidence.method !== 'provider') add('evidence/provider', 'error', `${gate.id} requires a recorded provider observation.`, record.path);
+  if (evidence.method === 'attestation') add('evidence/attestation', 'warning', `${gate.id} is a caller attestation; its file integrity is checked, not its semantic correctness.`, record.path);
+  const identity = evidence.deliverable;
+  if (!deliverable || !isRecord(identity) || (isRemoteDeliverable(deliverable)
+    ? identity.url !== deliverable.url || identity.provider !== deliverable.provider || identity.revisionId !== deliverable.revisionId
+    : identity.sha256 !== deliverable.sha256)) {
+    add('evidence/deliverable', 'error', 'Evidence refers to a different deliverable hash or remote revision.', record.path);
+  }
+  if (evidence.files !== undefined) {
+    const files = fileRecordArray(evidence.files);
+    if (!files || files.some((file) => !file.exists)) add('evidence/files', 'error', 'Evidence files must be existing hashed file records relative to the verification root.', record.path);
+    else files.forEach((file, index) => verifyFileRecord(file, `${label}/files/${index}`, root, add));
+  }
 }
 
 function verifyRemoteDeliverable(
@@ -243,8 +395,9 @@ export function formatArtifactVerificationReport(report: ArtifactVerificationRep
   const lines = [
     `Artifact receipt: ${report.receipt}`,
     `Contract: ${report.contract}`,
-    `Completion: ${report.completion ?? 'unknown'}`,
+    `Declared completion: ${report.completion ?? 'unknown'}`,
     `Integrity: ${report.valid ? 'valid' : 'invalid'}`,
+    'Verification: offline integrity and evidence coherence; semantic conformance is not independently established.',
     '',
   ];
   if (report.findings.length === 0) lines.push('No findings.');
@@ -410,7 +563,12 @@ function gateArray(value: unknown): ArtifactGate[] | undefined {
       || !allowed.has(item.status as ArtifactGateStatus)
       || (item.note !== undefined && (typeof item.note !== 'string' || item.note.length === 0))
     ) return undefined;
-    gates.push({ id: item.id, status: item.status as ArtifactGateStatus, ...(typeof item.note === 'string' ? { note: item.note } : {}) });
+    const evidence = item.evidence === undefined ? undefined : fileRecordArray(item.evidence);
+    if (item.evidence !== undefined && !evidence) return undefined;
+    gates.push({ id: item.id, status: item.status as ArtifactGateStatus,
+      ...(typeof item.note === 'string' ? { note: item.note } : {}),
+      ...(evidence ? { evidence } : {}),
+    });
   }
   return gates;
 }
@@ -462,6 +620,7 @@ function createReport(
   return {
     schema: 'companymd/artifact-verification/v1',
     valid: errors === 0,
+    verificationMode: 'offline-integrity',
     receipt,
     root,
     contract,

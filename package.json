@@ -1,6 +1,6 @@
 {
   "name": "company.md",
-  "version": "0.3.4",
+  "version": "0.4.0",
   "description": "An open, agent-readable company context standard for enterprise AI workspaces.",
   "homepage": "https://github.com/dilanhendadura/company.md#readme",
   "repository": {
@@ -59,7 +59,7 @@
     "prepare": "npm run build",
     "sync:plugin": "node scripts/sync-plugin-skill.mjs",
     "test": "npm run build && tsx --test test/*.test.ts",
-    "test:coverage": "npm run build && node --import tsx --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-branches=65 --test-coverage-functions=85 test/*.test.ts",
+    "test:coverage": "npm run build && node --import tsx --test --experimental-test-coverage --test-coverage-include=src/**/*.ts --test-coverage-lines=80 --test-coverage-branches=65 --test-coverage-functions=85 test/*.test.ts",
     "test:package": "node scripts/smoke-package.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

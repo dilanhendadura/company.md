@@ -19,7 +19,19 @@ The agent loads only the context needed, checks claims and commercial boundaries
 
 Company.md was sparked by [this tweet by Corey Ganim](https://x.com/coreyganim/status/2091196448364974090?s=46) about the four context files every useful AI workspace needs.
 
-## Try it in 30 seconds
+## Development candidate: 0.4.0
+
+The current checkout adds multi-company/product routing and stricter presentation evidence. This candidate has not been published to npm or tagged as a GitHub release by the local validation run. Build and test it locally with `npm ci`, `npm run check`, and `npm run test:package`. Use `node dist/cli.js` or install the locally packed tarball; a plugin runner can use `COMPANYMD_CLI=/absolute/path/to/dist/cli.js` until the matching release exists.
+
+A portfolio can declare `companymd.yaml` and run:
+
+```bash
+companymd context ./company-context --subject product-a --artifact presentation --compact --output context.md --receipt context.json
+```
+
+The selected subject determines business context, design and an optional template skill. Context is validated once from the same snapshot; ambiguous subjects, scope conflicts and missing required design fail explicitly. [Enterprise routing](docs/enterprise-adoption.md) explains groups, companies, products, paths and migration. [Compatibility](docs/compatibility.md) distinguishes portable adapters from real agent tests.
+
+## Published installation workflow
 
 Create a governed starter pack directly from GitHub:
 
@@ -96,7 +108,7 @@ This is a context contract, not an access-control system. Real repository and do
 plain-language request
         │
         ▼
-locate + lint the nearest pack
+resolve subject + validate selected sources
         │
         ▼
 load the narrowest profile
@@ -128,9 +140,10 @@ Requirements: Node.js 20 or newer.
 companymd init [directory] --name <name> [--with-design]
 companymd create <public-url> [directory] [--mode starter|team|enterprise]
 companymd adopt [directory] [--format json|pretty]
-companymd install [directory] [--agent codex]
+companymd install [directory] [--agent codex|claude|cursor|copilot]
 companymd lint [path|-] [--format json|pretty] [--strict]
-companymd context [path] [--profile <profile>] [--clearance <level>] [--receipt <file>]
+companymd resolve [path] [--subject <id>] [--artifact presentation]
+companymd context [path] [--subject <id>] [--profile <profile>] [--clearance <level>] [--receipt <file>]
 companymd diff <before> <after>
 companymd eval [path] --baseline <file> --candidate <file> [--rubric <yaml>]
 companymd artifact verify <receipt.json> [--root <directory>] [--format json|pretty]

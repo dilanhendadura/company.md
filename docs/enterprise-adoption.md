@@ -55,10 +55,10 @@ company-context/
 │   ├── OFFER.md
 │   └── VOICE.md
 └── eu-enterprise/
-    ├── COMPANY.md      # extends ../../global/COMPANY.md
-    ├── CUSTOMER.md     # extends ../../global/CUSTOMER.md
-    ├── OFFER.md        # extends ../../global/OFFER.md
-    └── VOICE.md        # extends ../../global/VOICE.md
+    ├── COMPANY.md      # extends ../global/COMPANY.md
+    ├── CUSTOMER.md     # extends ../global/CUSTOMER.md
+    ├── OFFER.md        # extends ../global/OFFER.md
+    └── VOICE.md        # extends ../global/VOICE.md
 ```
 
 Separate repositories are preferable when classifications, legal entities, or model-access policies differ materially. Classification in YAML is never a substitute for repository permissions.
@@ -78,7 +78,8 @@ At minimum, route approvals by file:
 Require CI to run:
 
 ```bash
-npx company.md lint ./company-context --strict
+companymd lint ./company-context/global --workspace-root ./company-context --strict
+companymd lint ./company-context/eu-enterprise --workspace-root ./company-context --strict
 ```
 
 High-risk changes should include source evidence and an explicit rollback. An agent may prepare the pull request and summarize the semantic diff; branch protection and human review enforce the decision.
@@ -92,7 +93,7 @@ Put an instruction near the work it governs:
 
 Before product, sales, marketing, support, or visual work:
 
-1. Run `companymd lint ./company-context` and stop on errors.
+1. Resolve the explicit subject with `companymd context ./company-context --subject <id> --profile <profile> --compact`; this validates the selected context and stops on errors.
 2. Build the narrowest relevant context profile.
 3. Treat verified claims and active decisions as authoritative within scope.
 4. Keep assumptions and open questions visibly uncertain.
@@ -126,3 +127,41 @@ Measure whether Company.md changes operating quality:
 - incidents caused by over-classified or outdated context.
 
 Lint conformance alone is not success. A perfectly structured document can still contain vague, untrue, or unactionable strategy; never turn the result into a truth score.
+
+
+## Groups, companies, products, and artifact bindings
+
+A registry named `companymd.yaml` is optional for a single pack and recommended for portfolios. It uses schema `companymd/registry/v1`. `subjects` contains stable `id`, `kind` (`group`, `company`, `product`, or `brand`), local `pack`, optional `parent` and unique case-insensitive `aliases`. Organizational parent relationships do not automatically inherit company prose, claims, offers or visual rules. Use document `extends` separately for intentionally shared context.
+
+```yaml
+schema: companymd/registry/v1
+subjects:
+  - id: example-holdings
+    kind: company
+    pack: ./global
+  - id: product-a
+    kind: product
+    parent: example-holdings
+    pack: ./product-a
+    artifacts:
+      presentation:
+        design: ./product-a/presentation/DESIGN.md
+        templateSkill: ./product-a/skills/product-slides/SKILL.md
+  - id: product-b
+    kind: product
+    parent: example-holdings
+    pack: ./product-b
+    artifacts:
+      presentation:
+        design: ./product-b/DESIGN.md
+```
+
+All registry paths resolve relative to the registry file and must exist inside the authorized workspace. The selected pack must match its subject ID or declare that product in its scope. A presentation design may differ from the application's `links.design`. `template` can bind an actual local template file; `templateSkill` binds an existing skill entrypoint by path. These are explicit requirements recorded with hashes, not a fuzzy skill-name search. No product-specific template skill is required when the generic artifact capability and the design are sufficient.
+
+`companymd resolve <workspace> --subject product-a --artifact presentation` explains selection. `companymd context` also performs resolution and validation, so a separate resolve/lint step is unnecessary during ordinary agent work. An explicit subject wins over the current directory; without one, the nearest registered pack or a single unambiguous subject is selected. A portfolio root with multiple choices returns an ambiguity error. Unknown subjects never fall back to another brand. Each call produces a fresh selection; callers must not reuse another product's old bundle.
+
+The default discovery/source boundary is the nearest Git root, or the supplied input directory outside Git. Pass `--workspace-root <authorized-directory>` for shared packs or a broader explicitly authorized portfolio. Every source, inherited base, design and template is canonicalized, and symlinks escaping the boundary are rejected. A standalone overlay referencing a sibling now needs an explicit common workspace root. No recursive search through sibling workspaces is performed.
+
+Use `--artifact presentation` to require `visual` and an actual DESIGN.md. A shared design outside the pack or belonging to another registered product nested inside it needs an explicit artifact binding. `--require-design` applies the same presence requirement to other visual work. `--compact` removes only inherited sections whose prose is byte-for-byte identical after the parser's newline normalization to a later section of the same role. Unique prohibitions, introductions, metadata and source digests remain. A full pack lint in CI still validates every companion; runtime profiles load only roles required by the task.
+
+Before claiming a multi-product workflow is ready, run the same brief with each subject, switch subjects in a single agent session, and test ambiguity, wrong-brand bindings, inherited prohibitions and missing templates. A combined deck requires an explicit co-branding choice; it is not implicit inheritance.

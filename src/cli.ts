@@ -10,15 +10,16 @@ import { createContext, writeContext, writeContextReceipt } from './context.js';
 import { diffPacks } from './diff.js';
 import { evaluateBeforeAfter } from './eval.js';
 import { initPack } from './init.js';
-import { installAgentIntegration } from './install.js';
+import { installAgentIntegration, SUPPORTED_AGENTS, type SupportedAgent } from './install.js';
+import { resolveContext } from './resolve.js';
 import { lintDocument } from './lint.js';
 import { lintPack } from './pack.js';
 import { parseDocument } from './parser.js';
 import { CLASSIFICATIONS, MATURITY_LEVELS, PROFILE_ROLES, SPEC_VERSION } from './spec.js';
 import type { Classification, Finding, LintReport, MaturityLevel } from './types.js';
 
-const VERSION = '0.3.4';
-const BOOLEAN_OPTIONS = new Set(['strict', 'with-design', 'force', 'allow-invalid', 'allow-draft', 'help', 'version']);
+const VERSION = '0.4.0';
+const BOOLEAN_OPTIONS = new Set(['strict', 'with-design', 'force', 'allow-invalid', 'allow-draft', 'require-design', 'compact', 'help', 'version']);
 
 async function main(argv: string[]): Promise<number> {
   const command = argv[0];
@@ -33,7 +34,15 @@ async function main(argv: string[]): Promise<number> {
     return 0;
   }
 
+  validateArgs(command, parsed);
   switch (command) {
+    case 'resolve': {
+      const result = resolveContext(parsed.positionals[0] ?? '.', resolutionOptions(parsed));
+      const format = parsed.options.get('format') ?? 'json';
+      if (!['json', 'pretty'].includes(format)) throw new Error('--format must be json or pretty');
+      process.stdout.write(format === 'json' ? `${JSON.stringify(result, null, 2)}\n` : `Subject: ${result.subject ?? 'unspecified'}\nPack: ${result.pack}\nReason: ${result.reason}\nDesign: ${result.binding?.design ?? '(pack link)'}\nTemplate skill: ${result.binding?.templateSkill ?? '(none)'}\n`);
+      return 0;
+    }
     case 'init':
       return runInit(parsed);
     case 'create':
@@ -66,9 +75,9 @@ async function main(argv: string[]): Promise<number> {
 
 function runInstall(args: ParsedArgs): number {
   const agent = args.options.get('agent') ?? 'codex';
-  if (agent !== 'codex') throw new Error('--agent must be codex');
+  if (!SUPPORTED_AGENTS.includes(agent as SupportedAgent)) throw new Error(`--agent must be one of: ${SUPPORTED_AGENTS.join(', ')}`);
   const result = installAgentIntegration(args.positionals[0] ?? '.', {
-    agent,
+    agent: agent as SupportedAgent,
     force: args.flags.has('force'),
   });
   process.stdout.write(`${JSON.stringify({ ok: true, ...result }, null, 2)}\n`);
@@ -144,7 +153,7 @@ function runInit(args: ParsedArgs): number {
 function runLint(args: ParsedArgs): number {
   const input = args.positionals[0] ?? '.';
   const format = args.options.get('format') ?? 'json';
-  const report = input === '-' ? lintStdin() : lintPack(input);
+  const report = input === '-' ? lintStdin() : lintPack(input, { ...(args.options.has('workspace-root') ? { workspaceRoot: args.options.get('workspace-root')! } : {}) });
   if (format === 'json') {
     process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
   } else if (format === 'pretty') {
@@ -157,8 +166,8 @@ function runLint(args: ParsedArgs): number {
 }
 
 function runContext(args: ParsedArgs): number {
-  const profile = args.options.get('profile') ?? 'all';
-  if (!(profile in PROFILE_ROLES)) throw new Error(`--profile must be one of: ${Object.keys(PROFILE_ROLES).join(', ')}`);
+  const profile = args.options.get('profile') ?? (args.options.get('artifact') === 'presentation' ? 'visual' : 'all');
+  if (!Object.hasOwn(PROFILE_ROLES, profile)) throw new Error(`--profile must be one of: ${Object.keys(PROFILE_ROLES).join(', ')}`);
   const clearance = (args.options.get('clearance') ?? 'internal') as Classification;
   if (!CLASSIFICATIONS.includes(clearance)) throw new Error(`--clearance must be one of: ${CLASSIFICATIONS.join(', ')}`);
   const result = createContext(args.positionals[0] ?? '.', {
@@ -166,6 +175,9 @@ function runContext(args: ParsedArgs): number {
     clearance,
     allowInvalid: args.flags.has('allow-invalid'),
     allowDraft: args.flags.has('allow-draft'),
+    requireDesign: args.flags.has('require-design'),
+    compact: args.flags.has('compact'),
+    ...resolutionOptions(args),
   });
   const output = args.options.get('output');
   const receipt = args.options.get('receipt');
@@ -177,6 +189,8 @@ function runContext(args: ParsedArgs): number {
       output: path.resolve(output),
       ...(receipt ? { receipt: path.resolve(receipt) } : {}),
       files: result.files,
+      resolution: result.resolution,
+      stats: result.stats,
     }, null, 2)}\n`);
   } else {
     if (receipt) writeContextReceipt(result, receipt);
@@ -292,6 +306,38 @@ function formatEvalReport(report: ReturnType<typeof evaluateBeforeAfter>): strin
   ].join('\n');
 }
 
+function resolutionOptions(args: ParsedArgs) {
+  return {
+    ...(args.options.has('subject') ? { subject: args.options.get('subject')! } : {}),
+    ...(args.options.has('artifact') ? { artifact: args.options.get('artifact')! } : {}),
+    ...(args.options.has('workspace-root') ? { workspaceRoot: args.options.get('workspace-root')! } : {}),
+  };
+}
+
+function validateArgs(command: string, args: ParsedArgs): void {
+  const common = ['help', 'version'];
+  const configuration: Record<string, { options: string[]; min: number; max: number }> = {
+    init: { options: ['name','id','owner','contact','classification','mode','maturity','with-design','force'], min: 0, max: 1 },
+    create: { options: ['name','id','owner','contact','classification','mode','maturity','with-design','force'], min: 1, max: 2 },
+    adopt: { options: ['format','output'], min: 0, max: 1 },
+    install: { options: ['agent','force'], min: 0, max: 1 },
+    lint: { options: ['format','strict','workspace-root'], min: 0, max: 1 },
+    context: { options: ['profile','clearance','output','receipt','allow-invalid','allow-draft','subject','artifact','workspace-root','require-design','compact'], min: 0, max: 1 },
+    resolve: { options: ['subject','artifact','workspace-root','format'], min: 0, max: 1 },
+    diff: { options: [], min: 2, max: 2 },
+    eval: { options: ['baseline','candidate','rubric','format'], min: 0, max: 1 },
+    artifact: { options: ['root','format'], min: 2, max: 2 },
+    spec: { options: [], min: 0, max: 0 },
+    schema: { options: [], min: 0, max: 1 },
+  };
+  const key = command === 'from-url' ? 'create' : command;
+  const rule = Object.hasOwn(configuration, key) ? configuration[key] : undefined;
+  if (!rule) return;
+  const allowed = new Set([...common, ...rule.options]);
+  for (const option of [...args.options.keys(), ...args.flags]) if (!allowed.has(option)) throw new Error(`Unknown option --${option} for ${command}`);
+  if (args.positionals.length < rule.min || args.positionals.length > rule.max) throw new Error(`Unexpected arguments for ${command}; expected ${rule.min === rule.max ? rule.min : `${rule.min}-${rule.max}`} positional argument(s)`);
+}
+
 function parseArgs(argv: string[]): ParsedArgs {
   const positionals: string[] = [];
   const options = new Map<string, string>();
@@ -305,7 +351,9 @@ function parseArgs(argv: string[]): ParsedArgs {
     }
     const [rawKey, inlineValue] = token.slice(2).split(/=(.*)/s, 2);
     if (!rawKey) continue;
+    if (flags.has(rawKey) || options.has(rawKey)) throw new Error(`Duplicate option --${rawKey}`);
     if (BOOLEAN_OPTIONS.has(rawKey)) {
+      if (inlineValue !== undefined) throw new Error(`--${rawKey} is a flag and does not accept a value`);
       flags.add(rawKey);
       continue;
     }
@@ -333,6 +381,8 @@ function schemaPath(name = 'frontmatter'): string {
   const schemas = new Map([
     ['frontmatter', 'frontmatter.schema.json'],
     ['artifact-receipt', 'artifact-receipt.schema.json'],
+    ['artifact-evidence', 'artifact-evidence.schema.json'],
+    ['registry', 'registry.schema.json'],
   ]);
   const file = schemas.get(name);
   if (!file) throw new Error(`Unknown schema ${name}; available: ${[...schemas.keys()].join(', ')}`);
@@ -348,14 +398,15 @@ Usage:
   companymd init [directory] --name <name> [--mode starter|team|enterprise]
   companymd create <public-url> [directory] [--name <name>] [--with-design]
   companymd adopt [directory] [--format json|pretty] [--output <file>]
-  companymd install [directory] [--agent codex]
+  companymd install [directory] [--agent codex|claude|cursor|copilot]
   companymd lint [path|-] [--format json|pretty] [--strict]
+  companymd resolve [path] [--subject <id>] [--artifact presentation] [--workspace-root <path>]
   companymd context [path] [--profile <profile>] [--clearance <level>] [--output <file>] [--receipt <file>]
   companymd diff <before> <after>
   companymd eval [path] --baseline <file> --candidate <file> [--rubric <yaml>]
   companymd artifact verify <receipt.json> [--root <directory>] [--format json|pretty]
   companymd spec
-  companymd schema [frontmatter|artifact-receipt]
+  companymd schema [frontmatter|artifact-receipt|artifact-evidence|registry]
 
 Profiles: ${Object.keys(PROFILE_ROLES).join(', ')}
 Clearance: ${CLASSIFICATIONS.join(', ')}
@@ -366,6 +417,11 @@ Common init options:
   --contact <contact>       Owner email or directory handle
   --classification <level> Defaults to internal
   --mode <level>            starter, team, or enterprise; defaults to starter
+  --subject <id>            Select a registry subject or alias
+  --artifact presentation   Require visual context and bound design/template
+  --workspace-root <path>   Explicit authorized discovery and source boundary
+  --require-design          Reject missing or unbound shared design
+  --compact                 Elide identical inherited prose sections only
   --with-design             Add and link a DESIGN.md file
   --force                   Replace colliding framework files
 

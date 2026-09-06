@@ -76,10 +76,10 @@ test('complete product overlays can extend a base enterprise pack', () => {
     fs.writeFileSync(file, content, 'utf8');
   }
 
-  const report = lintPack(overlay, { now: new Date('2026-08-23T00:00:00Z') });
+  const report = lintPack(overlay, { workspaceRoot: temp, now: new Date('2026-08-23T00:00:00Z') });
   assert.equal(report.summary.errors, 0);
 
-  const context = createContext(overlay, { profile: 'communications', clearance: 'internal' });
+  const context = createContext(overlay, { workspaceRoot: temp, profile: 'communications', clearance: 'internal' });
   assert.deepEqual(context.files, [
     '../global/COMPANY.md',
     'COMPANY.md',

@@ -1,6 +1,6 @@
 # Company.md authoring interview
 
-Create useful drafts in one focused conversation. Ask only questions that unlock the next pass, summarize each pass back to the owner, and let them correct it before continuing.
+Create useful drafts from the user's request and authorized sources. The passes below are evidence categories, not mandatory interview rounds. Inspect supplied websites, repositories, and documents first; ask only for facts still needed to complete the requested work. Preserve unknown facts explicitly instead of blocking draft creation on optional details.
 
 ## Pass 1 — Company
 
@@ -20,7 +20,7 @@ Ask how the business should sound, how it must never sound, preferred and avoide
 
 ## Pass 5 — Governance
 
-Name an accountable owner and contact for every file, classification, scope, review date, escalation route, and evidence source for material claims. Keep documents in `draft` until the named humans approve them.
+Name an accountable owner and contact for every file, classification, scope, review date, escalation route, and evidence source for material claims. Mark unconfirmed ownership explicitly. Keep documents in `draft` until the authorized owner approves activation. A request to create and test a draft authorizes `--allow-draft` for that test; disclose this status without asking for the same permission again.
 
 ## Finish
 

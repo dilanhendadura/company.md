@@ -2,6 +2,18 @@
 
 All notable changes to Company.md will be documented here.
 
+## 0.4.0 — development candidate, 2026-09-06
+
+- Adds optional `companymd.yaml` registry with stable subjects, organizational parents, aliases and explicit design/template/template-skill bindings.
+- Resolves nested work inside an authorized workspace, rejects ambiguity and incompatible scopes, and prevents source and symlink escapes.
+- Requires design for presentation tasks; hashes original source bytes, records subject/bindings, loads selected roles once and optionally elides exact inherited prose duplicates.
+- Fixes cumulative inherited claim evaluation, diamond inheritance classification checks, long prohibitions and suggested-phrase extraction.
+- Rejects unknown/duplicate CLI options and undeclared prototype-named artifact/profile lookups.
+- Installs portable adapters for Codex, Claude Code, Cursor and Copilot, with runtime compatibility checks and shell-free Windows/npm entrypoint resolution.
+- Binds completed presentations to context receipts and artifact-specific evidence. Remote verification explicitly checks offline evidence integrity, not live provider state.
+- Migration: standalone overlays with sibling sources need an explicit common `--workspace-root`; completed presentations need a context receipt and evidence, while structurally valid blocked receipts remain supported.
+- Publication and release tags are separate from local validation; this development run does not publish either.
+
 ## 0.3.4 — 2026-08-23
 
 - Extends artifact receipts to native cloud deliverables with an HTTPS URL, stable provider id, immutable revision id, native MIME type, and optional export metadata.

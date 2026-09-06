@@ -8,13 +8,15 @@ Establish the named customer, audience, meeting stage, desired next decision, an
 
 ## Context
 
-Use `communications` for a content-only storyboard. Use `visual` for slides or when the user asks to follow the design system. Keep customer-specific facts separate from the Company.md pack.
+Use `communications` for a content-only storyboard. For slides, generate context with `--artifact presentation` and the requested `--subject` when using a registry. This requires visual context and a resolved design. Keep customer-specific facts separate from the Company.md pack.
+
+Read the `templateSkill` path in the resolved context receipt, if present, and follow it with the host's presentation capability. Use a bound `template` file when provided. Do not substitute a different product's template; a generic presentation capability can use the selected design when no specific template is bound. See [product-routing.md](product-routing.md) for registry and product-switch behavior.
 
 ## Completion contract
 
 When the user requests a PowerPoint, Google Slides deck, or another binary presentation, a storyboard is an intermediate—not the completed deliverable. Invoke the available presentation artifact capability after generating the `visual` context. Export the requested file, render every slide, inspect the full-size renders, and fix overflow, clipping, wrapping, and design-system violations before claiming completion.
 
-Create the sibling Company.md receipt with `--contract presentation/v1` and record artifact gates with repeated `--check <id=status>` arguments. The contract requires:
+Create the sibling Company.md receipt with `--contract presentation/v1 --context-receipt <context-receipt.json>` and record artifact gates with repeated `--check <id=status>` arguments. Preserve the selected identity and bound design/template sources. The contract requires:
 
 - `artifact/export=pass|fail|blocked|not-run`;
 - `artifact/render=pass|fail|blocked|not-run`;
@@ -25,7 +27,7 @@ For a native cloud deck, record its HTTPS URL, provider, immutable revision id, 
 
 All four gates must be `pass` for a binary deck to be called complete. If an artifact runtime is unavailable, do not substitute a different format silently. Create the receipt with `--expected-deliverable <requested-path>`, record any storyboard with `--intermediate <path>`, mark the affected gates `blocked`, attach the cause with `--check-note <id=text>`, and name the missing capability. Return a storyboard only when the user requested one or accepts it as a fallback.
 
-After receipt creation, run `companymd artifact verify <receipt> --root <repository-root> --format pretty` through the skill runner. Do not hand off the deck or call it complete unless verification succeeds. The verifier must recompute every recorded source, intermediate, and deliverable hash; manually inspecting the JSON is not equivalent.
+After receipt creation, run `companymd artifact verify <receipt> --root <authorized-root> --format pretty` through the skill runner. Do not call the deck complete unless verification succeeds and the slides were actually inspected. The verifier recomputes recorded local hashes; gate declarations alone do not establish visual quality, and remote metadata checks are offline.
 
 ## Narrative
 

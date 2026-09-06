@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { parse as parseYaml } from 'yaml';
 import { loadPack } from './pack.js';
 import { normalizeHeading } from './spec.js';
@@ -95,22 +96,34 @@ function evaluateOutput(file: string, checks: EvalCheck[]): EvalOutputResult {
 }
 
 function defaultChecks(pack: LoadedPack): EvalCheck[] {
-  const offer = section(pack, 'offer', 'Claims to Avoid');
-  const voice = section(pack, 'voice', 'Phrases We Avoid');
+  // Prohibitions are cumulative: a more specific overlay cannot erase a
+  // restriction merely by omitting it from its own section.
+  const offer = sections(pack, 'offer', 'Claims to Avoid');
+  const voice = sections(pack, 'voice', 'Phrases We Avoid');
   const prohibitedClaims = extractQuotedPhrases(offer);
   const avoidedPhrases = extractLeadingPhrases(voice);
   return [
-    ...prohibitedClaims.map((phrase) => ({
-      id: `offer/claim-to-avoid/${slug(phrase)}`,
-      description: `Do not use the prohibited offer claim “${phrase}”`,
-      forbidden: [phrase],
-    })),
-    ...avoidedPhrases.map((phrase) => ({
-      id: `voice/phrase-to-avoid/${slug(phrase)}`,
-      description: `Do not use the avoided voice phrase “${phrase}”`,
-      forbidden: [phrase],
-    })),
+    ...forbiddenChecks(prohibitedClaims, 'offer/claim-to-avoid', 'prohibited offer claim'),
+    ...forbiddenChecks(avoidedPhrases, 'voice/phrase-to-avoid', 'avoided voice phrase'),
   ];
+}
+
+function forbiddenChecks(phrases: string[], prefix: string, description: string): EvalCheck[] {
+  const slugCounts = new Map<string, number>();
+  for (const phrase of phrases) slugCounts.set(slug(phrase), (slugCounts.get(slug(phrase)) ?? 0) + 1);
+  return phrases.map((phrase) => {
+    const baseId = slug(phrase);
+    // Keep existing readable IDs where possible, while preserving distinct
+    // phrases with colliding/truncated slugs and non-Latin-only constraints.
+    const suffix = !baseId || slugCounts.get(baseId)! > 1
+      ? `-${createHash('sha256').update(normalizeText(phrase)).digest('hex').slice(0, 12)}`
+      : '';
+    return {
+      id: `${prefix}/${baseId}${suffix}`,
+      description: `Do not use the ${description} “${phrase}”`,
+      forbidden: [phrase],
+    };
+  });
 }
 
 function loadRubric(file: string): EvalCheck[] {
@@ -138,23 +151,31 @@ function loadRubric(file: string): EvalCheck[] {
   });
 }
 
-function section(pack: LoadedPack, role: 'offer' | 'voice', heading: string): string {
-  const document = pack.documents.find((entry) => entry.role === role && !entry.inherited && entry.parsed);
-  const found = document?.parsed?.sections.find((entry) => entry.normalizedHeading === normalizeHeading(heading));
-  return found?.content ?? '';
+function sections(pack: LoadedPack, role: 'offer' | 'voice', heading: string): string {
+  const normalizedHeading = normalizeHeading(heading);
+  return pack.documents
+    .filter((entry) => entry.role === role)
+    .flatMap((entry) => entry.parsed?.sections
+      .filter((candidate) => candidate.normalizedHeading === normalizedHeading)
+      .map((candidate) => candidate.content) ?? [])
+    .join('\n');
 }
 
 function extractQuotedPhrases(content: string): string[] {
   return unique(Array.from(
-    content.matchAll(/[“"]([^”"]{2,80})[”"]/g),
-    (match) => match[1]!.trim().replace(/[.,;:!?]+$/g, ''),
+    content.matchAll(/“([^”\n]+)”|"([^"\n]+)"/g),
+    (match) => (match[1] ?? match[2])!.trim().replace(/[.,;:!?]+$/g, ''),
   ));
 }
 
 function extractLeadingPhrases(content: string): string[] {
-  const quoted = extractQuotedPhrases(content);
-  const beforeArrow = Array.from(content.matchAll(/^\s*[-*]\s+([^\n→-]{2,80})\s*(?:→|->)/gm), (match) => match[1]!.replace(/[“”"']/g, '').trim());
-  return unique([...quoted, ...beforeArrow]);
+  return unique(content.split('\n').flatMap((line) => {
+    const beforeArrow = line.match(/^\s*[-*]\s+(.+?)\s*(?:→|->)/)?.[1];
+    if (!beforeArrow) return extractQuotedPhrases(line);
+    const quoted = extractQuotedPhrases(beforeArrow);
+    // Text after an arrow is the suggested replacement, even when quoted.
+    return quoted.length ? quoted : [beforeArrow.trim().replace(/^'|'$/g, '')];
+  }));
 }
 
 function deduplicateChecks(checks: EvalCheck[]): EvalCheck[] {
@@ -183,7 +204,14 @@ function slug(value: string): string {
 }
 
 function unique(values: string[]): string[] {
-  return values.filter((value, index) => value && values.indexOf(value) === index);
+  // Sorting makes check identities and descriptions independent of extends
+  // order; matching already ignores case, apostrophe style and whitespace.
+  const byNormalizedText = new Map<string, string>();
+  for (const value of [...values].sort()) {
+    const normalized = normalizeText(value);
+    if (normalized && !byNormalizedText.has(normalized)) byNormalizedText.set(normalized, value);
+  }
+  return [...byNormalizedText.values()];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

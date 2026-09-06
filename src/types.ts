@@ -102,7 +102,10 @@ export interface LoadedDocument {
   content: string;
   parsed?: ParsedDocument;
   inherited: boolean;
+  /** First inheriting document, retained for compatibility. */
   inheritedBy?: string;
+  /** Every direct child; a shared base in a diamond has more than one. */
+  inheritedByPaths?: string[];
 }
 
 export interface LoadedPack {

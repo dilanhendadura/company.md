@@ -20,6 +20,8 @@ Options:
   --export-size <bytes>     Optional remote export byte size
   --export-sha256 <hash>   Optional SHA-256 for exported remote bytes
   --source <file>          Governed source file; repeat as needed
+  --context-receipt <json> Bind resolved context and copy its verified sources and attachments
+  --evidence <id=json>     Hashed companymd/evidence/v1 proof for a gate; repeat as needed
   --intermediate <file>    Generated intermediate file; repeat as needed
   --client-source <label>  Client input or source label; repeat as needed
   --unresolved <item>      Unresolved fact or approval; repeat as needed
@@ -36,10 +38,10 @@ if (process.argv.slice(2).some((argument) => argument === '--help' || argument =
 function parseArgs(argv) {
   const values = new Map();
   const repeated = new Map();
-  const repeatable = new Set(['source', 'intermediate', 'client-source', 'unresolved', 'check', 'check-note']);
+  const repeatable = new Set(['source', 'intermediate', 'client-source', 'unresolved', 'check', 'check-note', 'evidence']);
   const allowed = new Set([
     'output', 'deliverable', 'expected-deliverable', 'remote-url', 'provider', 'revision', 'mime-type', 'title',
-    'export-mime-type', 'export-size', 'export-sha256', 'profile', 'clearance', 'root', 'contract', ...repeatable,
+    'export-mime-type', 'export-size', 'export-sha256', 'profile', 'clearance', 'root', 'contract', 'context-receipt', ...repeatable,
   ]);
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
@@ -64,7 +66,7 @@ function hashFile(file) {
 }
 
 function fileRecord(file, root) {
-  const absolute = path.resolve(file);
+  const absolute = fs.realpathSync(path.resolve(file));
   if (!fs.existsSync(absolute) || !fs.statSync(absolute).isFile()) {
     throw new Error(`File does not exist: ${absolute}`);
   }
@@ -76,10 +78,13 @@ function fileRecord(file, root) {
 }
 
 function expectedFileRecord(file, root) {
-  const absolute = path.resolve(file);
+  let absolute = path.resolve(file);
   if (fs.existsSync(absolute)) {
     throw new Error(`Expected deliverable already exists; use --deliverable instead: ${absolute}`);
   }
+  let parent = path.dirname(absolute);
+  while (!fs.existsSync(parent)) parent = path.dirname(parent);
+  absolute = path.resolve(fs.realpathSync(parent), path.relative(parent, absolute));
   return {
     path: portablePath(absolute, root),
     exists: false,
@@ -144,7 +149,7 @@ const expectedDeliverable = values.get('expected-deliverable');
 const remoteUrl = values.get('remote-url');
 const profile = values.get('profile');
 const clearance = values.get('clearance');
-const root = values.get('root') ? path.resolve(values.get('root')) : undefined;
+const root = values.get('root') ? fs.realpathSync(path.resolve(values.get('root'))) : undefined;
 const contract = values.get('contract') ?? 'generic/v1';
 const verification = verificationChecks(repeated.get('check') ?? [], repeated.get('check-note') ?? []);
 const deliverableModes = [deliverable, expectedDeliverable, remoteUrl].filter(Boolean);
@@ -201,6 +206,20 @@ const deliverableRecord = deliverable
     ? expectedFileRecord(expectedDeliverable, root)
     : remoteRecord(values);
 
+const completion = completionStatus(verification, remoteUrl ? true : deliverableRecord.exists);
+const contextFile = values.get('context-receipt');
+if (contextFile && repeated.has('source')) throw new Error('--context-receipt copies authoritative sources; do not combine it with --source');
+const bound = contextFile ? bindContext(contextFile, root ?? fs.realpathSync(process.cwd()), profile, clearance, contract, completion) : undefined;
+attachEvidence(verification, repeated.get('evidence') ?? [], deliverableRecord, root ?? fs.realpathSync(process.cwd()));
+if (contract === 'presentation/v1' && completion === 'complete' && !bound) throw new Error('Completed presentation/v1 requires --context-receipt');
+const requiredEvidence = [
+  ...(contract === 'presentation/v1' && completion === 'complete' ? ['artifact/render', 'artifact/overflow', 'design/conformance'] : []),
+  ...(remoteUrl && completion === 'complete' ? ['artifact/access', 'artifact/revision'] : []),
+];
+for (const id of requiredEvidence) {
+  if (!verification.find((gate) => gate.id === id)?.evidence?.length) throw new Error(`Completed artifact requires --evidence ${id}=<json>`);
+}
+
 const receipt = {
   schema: 'companymd/receipt/v1',
   contract,
@@ -208,12 +227,13 @@ const receipt = {
   profile,
   clearance,
   deliverable: deliverableRecord,
-  sources: (repeated.get('source') ?? []).map((source) => fileRecord(source, root)),
+  sources: bound?.sources ?? (repeated.get('source') ?? []).map((source) => fileRecord(source, root)),
+  ...(bound ? { context: bound.context, attachments: bound.attachments } : {}),
   intermediates: (repeated.get('intermediate') ?? []).map((intermediate) => fileRecord(intermediate, root)),
   clientSources: repeated.get('client-source') ?? [],
   unresolved: repeated.get('unresolved') ?? [],
   ...(verification.length ? {
-    completion: completionStatus(verification, remoteUrl ? true : deliverableRecord.exists),
+    completion,
     verification,
   } : {}),
 };
@@ -256,4 +276,91 @@ function remoteRecord(values) {
 
 function validMimeType(value) {
   return /^[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+-]+$/i.test(value);
+}
+
+function bindContext(file, root, profile, clearance, contract, completion) {
+  const contextRecord = fileRecord(file, root);
+  const contextPath = path.resolve(root, contextRecord.path);
+  const context = JSON.parse(fs.readFileSync(contextPath, 'utf8'));
+  if (!context || context.schema !== 'companymd/context-receipt/v1') throw new Error('Invalid context receipt schema');
+  if (typeof context.generatedAt !== 'string' || Number.isNaN(Date.parse(context.generatedAt))) throw new Error('Context receipt needs valid generatedAt');
+  if (context.profile !== profile || context.clearance !== clearance) throw new Error('Context receipt profile and clearance must match --profile and --clearance');
+  if (typeof context.subject !== 'string' || !context.subject.trim()) throw new Error('Context receipt needs a resolved subject');
+  if (contract === 'presentation/v1' && context.artifact !== undefined && context.artifact !== 'presentation') throw new Error('Context artifact does not match presentation/v1');
+  if (typeof context.sourceRoot !== 'string' || !context.sourceRoot || path.isAbsolute(context.sourceRoot)) throw new Error('Context sourceRoot must be relative to its receipt');
+  const sourceRoot = fs.realpathSync(path.resolve(path.dirname(contextPath), context.sourceRoot));
+  portablePath(sourceRoot, root);
+  if (!fs.statSync(sourceRoot).isDirectory()) throw new Error('Context sourceRoot must be a directory');
+  const sources = copyContextFiles(context.sources, sourceRoot, root, ['company', 'customer', 'offer', 'voice', 'design'], clearance);
+  const attachments = copyContextFiles(context.attachments, sourceRoot, root, ['registry', 'template', 'templateSkill']);
+  if (contract === 'presentation/v1' && completion === 'complete') {
+    for (const role of ['company', 'customer', 'offer', 'voice', 'design']) {
+      if (!sources.some((source) => source.role === role)) throw new Error(`Completed presentation requires context source role ${role}`);
+    }
+  }
+  if (context.binding !== undefined) {
+    if (!context.binding || typeof context.binding !== 'object' || Array.isArray(context.binding)) throw new Error('Context binding must be an object');
+    for (const role of ['design', 'template', 'templateSkill']) {
+      const binding = context.binding[role];
+      if (binding === undefined) continue;
+      if (typeof binding !== 'string' || path.isAbsolute(binding)) throw new Error(`Invalid context ${role} binding`);
+      const expected = fileRecord(path.resolve(sourceRoot, binding), root);
+      if (!(role === 'design' ? sources : attachments).some((entry) => entry.role === role && entry.path === expected.path && entry.sha256 === expected.sha256)) throw new Error(`Missing required context ${role} binding`);
+    }
+  }
+  return {
+    context: { ...contextRecord, subject: context.subject, ...(context.artifact !== undefined ? { artifact: context.artifact } : {}) },
+    sources, attachments,
+  };
+}
+
+function copyContextFiles(entries, sourceRoot, root, roles, clearance) {
+  if (!Array.isArray(entries)) throw new Error('Context sources and attachments must be arrays');
+  const seen = new Set();
+  return entries.map((entry) => {
+    if (!entry || typeof entry.file !== 'string' || !entry.file || path.isAbsolute(entry.file) || !roles.includes(entry.role) || !/^[a-f0-9]{64}$/.test(entry.sha256)) throw new Error('Invalid context file record');
+    const actual = fileRecord(path.resolve(sourceRoot, entry.file), root);
+    if (actual.sha256 !== entry.sha256) throw new Error(`Stale context source hash: ${entry.file}`);
+    const key = `${entry.role}:${actual.path}`;
+    if (seen.has(key)) throw new Error(`Duplicate context source: ${entry.file}`);
+    seen.add(key);
+    if (clearance) {
+      const levels = ['public', 'internal', 'confidential', 'restricted'];
+      if (!levels.includes(entry.classification) || levels.indexOf(entry.classification) > levels.indexOf(clearance)) throw new Error(`Context source exceeds clearance or has invalid classification: ${entry.file}`);
+      if (entry.status !== undefined && typeof entry.status !== 'string') throw new Error(`Invalid source status: ${entry.file}`);
+    }
+    return { ...actual, role: entry.role,
+      ...(clearance ? { classification: entry.classification } : {}),
+      ...(entry.status !== undefined ? { status: entry.status } : {}),
+    };
+  });
+}
+
+function attachEvidence(gates, values, deliverable, root) {
+  for (const value of values) {
+    const [id, file] = parseAssignment(value, '--evidence');
+    const gate = gates.find((entry) => entry.id === id);
+    if (!gate) throw new Error(`--evidence references missing --check id: ${id}`);
+    const record = fileRecord(file, root);
+    const evidence = JSON.parse(fs.readFileSync(path.resolve(root, record.path), 'utf8'));
+    if (!evidence || evidence.schema !== 'companymd/evidence/v1' || evidence.gate !== id
+      || !['measured', 'attestation', 'provider'].includes(evidence.method)
+      || typeof evidence.observedAt !== 'string' || Number.isNaN(Date.parse(evidence.observedAt))
+      || typeof evidence.details !== 'string' || !evidence.details.trim()) throw new Error(`Invalid companymd/evidence/v1 evidence for ${id}`);
+    const identity = evidence.deliverable;
+    if (!identity || (deliverable.kind === 'remote'
+      ? identity.url !== deliverable.url || identity.provider !== deliverable.provider || identity.revisionId !== deliverable.revisionId
+      : identity.sha256 !== deliverable.sha256)) throw new Error(`Evidence ${id} refers to a different deliverable`);
+    if (['artifact/access', 'artifact/revision'].includes(id) && evidence.method !== 'provider') throw new Error(`${id} requires provider observation evidence`);
+    if (evidence.files !== undefined) {
+      if (!Array.isArray(evidence.files)) throw new Error(`Evidence ${id} files must be an array`);
+      for (const entry of evidence.files) {
+        if (!entry || typeof entry.path !== 'string' || entry.exists !== true) throw new Error(`Invalid evidence file for ${id}`);
+        const actual = fileRecord(path.resolve(root, entry.path), root);
+        if (actual.sha256 !== entry.sha256) throw new Error(`Stale evidence file hash: ${entry.path}`);
+      }
+    }
+    if (gate.evidence?.some((existing) => existing.path === record.path)) throw new Error(`Duplicate evidence for ${id}: ${record.path}`);
+    (gate.evidence ??= []).push(record);
+  }
 }

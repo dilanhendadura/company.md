@@ -225,7 +225,7 @@ Examples SHOULD include the task and audience that make them good. Agents MUST a
 
 A document MAY use `extends` to identify one or more base documents of the same kind. Paths are resolved relative to the extending document. Cycles are invalid.
 
-In version `0.1`, every overlay is a complete document: it carries all common metadata and all required prose sections. Consumers read base documents first and the more specific overlay last. When statements conflict, the later, more specific overlay wins only within its declared scope.
+In version `0.1`, every overlay is a complete document: it carries all common metadata and all required prose sections. Consumers read base documents first and the more specific overlay last. More specific preferences may override earlier preferences within their declared scope. Prohibited claims and operating boundaries remain cumulative; an overlay cannot remove them simply by omission. Consumers MUST validate every inheritance edge, including edges to shared base documents.
 
 An overlay MUST NOT declare a less restrictive classification than any inherited base. It MAY be more restrictive. Organizations SHOULD keep inheritance shallow; more than two levels is difficult for humans to audit.
 
@@ -247,6 +247,8 @@ Within each role, bases appear before overlays. `DESIGN.md` appears last so visu
 Generated bundles MUST identify their profile, clearance, generation time, and source files. A consumer MAY emit a `companymd/context-receipt/v1` sidecar containing source paths and SHA-256 digests. Generated bundles and receipts are disposable artifacts and MUST NOT become a second source of truth.
 
 A file-based deliverable MAY carry a sibling `companymd/receipt/v1` sidecar conforming to [`schemas/artifact-receipt.schema.json`](schemas/artifact-receipt.schema.json), with the deliverable digest, governed source digests, generated intermediate digests, client-source labels, unresolved facts, and verification gates. New receipts SHOULD declare an artifact contract. `generic/v1` requires at least one verification gate; `presentation/v1` additionally requires the `visual` profile and the `artifact/export`, `artifact/render`, `artifact/overflow`, and `design/conformance` gates. A blocked receipt MAY identify an expected deliverable that does not exist; it records `exists: false` and `sha256: null` rather than fabricating an artifact. Each verification gate has a stable id and one status: `pass`, `fail`, `blocked`, or `not-run`. A consumer MUST recompute recorded hashes before trusting a receipt and MUST NOT describe an artifact as complete when a required gate is `fail`, `blocked`, `not-run`, missing, or stale.
+
+Completed `presentation/v1` receipts MUST bind the original context receipt and copy its complete source and attachment records. They MUST include company, customer, offer, voice and design roles, and preserve required template bindings. Render, overflow and design gates MUST reference hashed `companymd/evidence/v1` records tied to the exact deliverable digest or remote revision. Completed remote artifacts additionally require recorded provider observations for access and revision. A verifier MUST distinguish offline integrity from live provider state and identify caller attestations without presenting them as independent semantic verification. The evidence format is defined in [`schemas/artifact-evidence.schema.json`](schemas/artifact-evidence.schema.json).
 
 ## 9. DESIGN.md interoperability
 
@@ -308,3 +310,14 @@ Breaking changes to required fields, semantics, or resolution behavior require a
 An integration MAY expose the workflow as an Agent Skill named `company`. The skill MUST validate the pack, select the narrowest sufficient context profile, keep request-specific customer facts separate from durable company truth, and preserve human approval boundaries.
 
 Before/after evaluation SHOULD run the same task with the same model, tools, attachments, and output constraints. Reports SHOULD expose criterion-level passes, fixed failures, regressions, and unresolved failures. They MUST NOT present structural or textual conformance as a truth score, factual certification, or business-outcome prediction.
+
+
+## 14. Optional subject registry and runtime bindings
+
+A workspace MAY provide `companymd.yaml` conforming to `companymd/registry/v1` and the published registry schema. Subjects have unique stable IDs, unique case-insensitive aliases, an organizational kind, a local pack, and optional parent and artifact bindings. Organizational parents MUST NOT imply context inheritance. Parent cycles and unknown parents are invalid.
+
+Explicit subject selection takes precedence over directory proximity. Without an explicit subject, a consumer may choose a nearest registered pack or a single unambiguous subject. It MUST reject ambiguity and unknown identities instead of selecting a sibling product. A pack's ID or declared product scope MUST identify the requested subject; applicable source scopes MUST be compatible.
+
+Artifact bindings MAY specify `design`, `template`, and `templateSkill` paths. These resolve relative to the registry. A presentation requires a visual profile and an actual design source. Shared designs outside the selected pack, or inside a different registered descendant pack, require an explicit binding. Folder nesting MUST NOT grant permission to use another subject's design. Every bound file MUST exist inside the authorized workspace; canonical paths and symlinks MUST remain inside that boundary.
+
+The context receipt records the selected subject, artifact type, sources, attachments and relative binding paths. Source hashes cover original bytes. Compact context MAY elide identical inherited prose only if the effective content, unique constraints and source provenance are preserved. Runtime validation SHOULD use the same in-memory snapshot that is bundled.

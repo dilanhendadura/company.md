@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://company.md/schemas/0.1/artifact-evidence.schema.json",
+  "title": "Company.md artifact evidence v1",
+  "description": "Caller-supplied measured results, attestations or provider observations. Hash verification proves integrity and identity coherence, not semantic truth or live provider state.",
+  "type": "object",
+  "required": ["schema", "gate", "method", "observedAt", "details", "deliverable"],
+  "properties": {
+    "schema": { "const": "companymd/evidence/v1" },
+    "gate": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._/-]{0,127}$" },
+    "method": { "enum": ["measured", "attestation", "provider"] },
+    "observedAt": { "type": "string", "format": "date-time" },
+    "details": { "type": "string", "minLength": 1 },
+    "deliverable": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["sha256"],
+          "properties": {
+            "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["url", "provider", "revisionId"],
+          "properties": {
+            "url": { "type": "string", "pattern": "^https://" },
+            "provider": { "type": "string", "minLength": 1 },
+            "revisionId": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "files": {
+      "type": "array",
+      "items": { "$ref": "artifact-receipt.schema.json#/$defs/fileRecord" }
+    }
+  },
+  "additionalProperties": true
+}

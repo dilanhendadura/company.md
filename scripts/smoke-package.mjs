@@ -110,8 +110,8 @@ try {
   run(process.execPath, [skillRunner, "--version"], {
     cwd: pack,
     quiet: true,
-    env: { ...process.env, COMPANYMD_CLI: packagedCli },
   });
+  run(process.execPath, [skillRunner, "context", pack, "--profile", "visual", "--allow-draft", "--compact", "--output", join(consumer, "runner-context.md")], { cwd: pack, quiet: true });
   run(process.execPath, [receiptTool, "--help"], { cwd: pack, quiet: true });
   run(process.execPath, [
     receiptTool,

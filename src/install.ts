@@ -2,7 +2,18 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export type SupportedAgent = 'codex';
+export const SUPPORTED_AGENTS = ['codex', 'claude', 'cursor', 'copilot'] as const;
+export type SupportedAgent = typeof SUPPORTED_AGENTS[number];
+
+// Codex, Cursor, and Copilot discover the same portable project skill directory.
+// Claude Code has its own documented discovery path. Only the skill is copied;
+// company sources and existing project instructions remain in place.
+const SKILL_DIRECTORIES: Record<SupportedAgent, string> = {
+  codex: '.agents',
+  claude: '.claude',
+  cursor: '.agents',
+  copilot: '.agents',
+};
 
 export interface InstallOptions {
   agent?: SupportedAgent;
@@ -17,7 +28,9 @@ export interface InstallResult {
 
 export function installAgentIntegration(directory: string, options: InstallOptions = {}): InstallResult {
   const agent = options.agent ?? 'codex';
-  if (agent !== 'codex') throw new Error(`Unsupported agent ${agent}; currently available: codex`);
+  if (!SUPPORTED_AGENTS.includes(agent)) {
+    throw new Error(`Unsupported agent ${agent}; currently available: ${SUPPORTED_AGENTS.join(', ')}`);
+  }
 
   const targetRoot = path.resolve(directory);
   if (!fs.existsSync(targetRoot) || !fs.statSync(targetRoot).isDirectory()) {
@@ -25,7 +38,7 @@ export function installAgentIntegration(directory: string, options: InstallOptio
   }
 
   const source = bundledSkillDirectory();
-  const destination = path.join(targetRoot, '.agents', 'skills', 'company');
+  const destination = path.join(targetRoot, SKILL_DIRECTORIES[agent], 'skills', 'company');
   if (fs.existsSync(destination)) {
     if (!options.force) throw new Error(`Refusing to overwrite existing skill: ${destination}`);
     fs.rmSync(destination, { recursive: true, force: true });

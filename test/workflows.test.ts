@@ -10,6 +10,7 @@ import { verifyArtifactReceipt } from '../src/artifact.js';
 import { seedPackFromHtml } from '../src/bootstrap.js';
 import { createContext, writeContextReceipt } from '../src/context.js';
 import { evaluateBeforeAfter } from '../src/eval.js';
+import { boundPresentation } from './artifact-fixtures.js';
 
 test('seeds a low-confidence starter pack from public homepage metadata', () => {
   const target = fs.mkdtempSync(path.join(os.tmpdir(), 'companymd-bootstrap-'));
@@ -180,6 +181,7 @@ test('artifact receipt tool records completed and expected blocked deliverables'
   const fakeDeck = path.join(target, 'fake.pptx');
   const fakeDeckReceipt = path.join(target, 'fake.pptx.companymd-receipt.json');
   fs.writeFileSync(fakeDeck, 'not a PowerPoint file', 'utf8');
+  const fakeBinding = boundPresentation(target, { sha256: createHash('sha256').update(fs.readFileSync(fakeDeck)).digest('hex') });
   const fakePresentation = run(
     '--root', target,
     '--output', fakeDeckReceipt,
@@ -187,6 +189,8 @@ test('artifact receipt tool records completed and expected blocked deliverables'
     '--profile', 'visual',
     '--clearance', 'internal',
     '--contract', 'presentation/v1',
+    '--context-receipt', path.join(target, 'context.json'),
+    ...fakeBinding.verification.flatMap((gate) => (gate.evidence ?? []).flatMap((evidence) => ['--evidence', `${gate.id}=${path.join(target, evidence.path)}`])),
     '--check', 'artifact/export=pass',
     '--check', 'artifact/render=pass',
     '--check', 'artifact/overflow=pass',
@@ -198,6 +202,7 @@ test('artifact receipt tool records completed and expected blocked deliverables'
   assert.ok(fakeVerification.findings.some((finding) => finding.ruleId === 'presentation/format'));
 
   const remoteReceipt = path.join(target, 'remote-slides.companymd-receipt.json');
+  const remoteBinding = boundPresentation(target, { url: 'https://docs.google.com/presentation/d/example/edit', provider: 'google-slides', revisionId: 'revision-42' }, true);
   const remotePresentation = run(
     '--root', target,
     '--output', remoteReceipt,
@@ -211,7 +216,8 @@ test('artifact receipt tool records completed and expected blocked deliverables'
     '--profile', 'visual',
     '--clearance', 'internal',
     '--contract', 'presentation/v1',
-    '--source', source,
+    '--context-receipt', path.join(target, 'context.json'),
+    ...remoteBinding.verification.flatMap((gate) => (gate.evidence ?? []).flatMap((evidence) => ['--evidence', `${gate.id}=${path.join(target, evidence.path)}`])),
     '--check', 'artifact/access=pass',
     '--check', 'artifact/revision=pass',
     '--check', 'artifact/export=pass',

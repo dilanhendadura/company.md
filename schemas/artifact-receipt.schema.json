@@ -3,31 +3,14 @@
   "$id": "https://company.md/schemas/0.1/artifact-receipt.schema.json",
   "title": "Company.md artifact receipt v1",
   "type": "object",
-  "required": [
-    "schema",
-    "generatedAt",
-    "profile",
-    "clearance",
-    "deliverable",
-    "sources",
-    "clientSources",
-    "unresolved"
-  ],
+  "required": ["schema", "generatedAt", "profile", "clearance", "deliverable", "sources", "clientSources", "unresolved"],
   "properties": {
     "schema": { "const": "companymd/receipt/v1" },
-    "contract": {
-      "enum": ["generic/v1", "presentation/v1"]
-    },
+    "contract": { "enum": ["generic/v1", "presentation/v1"] },
     "generatedAt": { "type": "string", "format": "date-time" },
-    "profile": {
-      "enum": ["core", "customer", "commercial", "communications", "visual", "all"]
-    },
-    "clearance": {
-      "enum": ["public", "internal", "confidential", "restricted"]
-    },
-    "completion": {
-      "enum": ["complete", "failed", "blocked", "incomplete"]
-    },
+    "profile": { "enum": ["core", "customer", "commercial", "communications", "visual", "all"] },
+    "clearance": { "enum": ["public", "internal", "confidential", "restricted"] },
+    "completion": { "enum": ["complete", "failed", "blocked", "incomplete"] },
     "deliverable": {
       "oneOf": [
         { "$ref": "#/$defs/deliverableRecord" },
@@ -36,7 +19,7 @@
     },
     "sources": {
       "type": "array",
-      "items": { "$ref": "#/$defs/fileRecord" }
+      "items": { "$ref": "#/$defs/sourceRecord" }
     },
     "intermediates": {
       "type": "array",
@@ -56,26 +39,25 @@
         "type": "object",
         "required": ["id", "status"],
         "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^[a-z0-9][a-z0-9._/-]{0,127}$"
-          },
-          "status": {
-            "enum": ["pass", "fail", "blocked", "not-run"]
-          },
-          "note": {
-            "type": "string",
-            "minLength": 1
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._/-]{0,127}$" },
+          "status": { "enum": ["pass", "fail", "blocked", "not-run"] },
+          "note": { "type": "string", "minLength": 1 },
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/$defs/fileRecord" }
           }
         },
         "additionalProperties": false
       }
-    }
+    },
+    "attachments": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/attachmentRecord" }
+    },
+    "context": { "$ref": "#/$defs/contextRecord" }
   },
-  "dependentRequired": {
-    "completion": ["verification"],
-    "verification": ["completion"]
-  },
+  "dependentRequired": { "completion": ["verification"], "verification": ["completion"] },
   "allOf": [
     {
       "if": { "required": ["contract"] },
@@ -91,7 +73,9 @@
         "properties": {
           "deliverable": {
             "required": ["exists"],
-            "properties": { "exists": { "const": false } }
+            "properties": {
+              "exists": { "const": false }
+            }
           }
         }
       },
@@ -101,7 +85,9 @@
           "completion": { "enum": ["failed", "blocked"] },
           "verification": {
             "contains": {
-              "properties": { "status": { "enum": ["fail", "blocked"] } },
+              "properties": {
+                "status": { "enum": ["fail", "blocked"] }
+              },
               "required": ["status"]
             }
           }
@@ -111,7 +97,9 @@
     {
       "if": {
         "required": ["completion"],
-        "properties": { "completion": { "const": "complete" } }
+        "properties": {
+          "completion": { "const": "complete" }
+        }
       },
       "then": {
         "properties": {
@@ -119,7 +107,9 @@
             "oneOf": [
               {
                 "required": ["exists"],
-                "properties": { "exists": { "const": true } }
+                "properties": {
+                  "exists": { "const": true }
+                }
               },
               { "$ref": "#/$defs/remoteDeliverableRecord" }
             ]
@@ -127,7 +117,9 @@
           "verification": {
             "minItems": 1,
             "items": {
-              "properties": { "status": { "const": "pass" } },
+              "properties": {
+                "status": { "const": "pass" }
+              },
               "required": ["status"]
             }
           }
@@ -139,7 +131,9 @@
         "properties": {
           "deliverable": {
             "required": ["kind"],
-            "properties": { "kind": { "const": "remote" } }
+            "properties": {
+              "kind": { "const": "remote" }
+            }
           }
         }
       },
@@ -151,13 +145,17 @@
               {
                 "contains": {
                   "required": ["id"],
-                  "properties": { "id": { "const": "artifact/access" } }
+                  "properties": {
+                    "id": { "const": "artifact/access" }
+                  }
                 }
               },
               {
                 "contains": {
                   "required": ["id"],
-                  "properties": { "id": { "const": "artifact/revision" } }
+                  "properties": {
+                    "id": { "const": "artifact/revision" }
+                  }
                 }
               }
             ]
@@ -168,7 +166,9 @@
     {
       "if": {
         "required": ["contract"],
-        "properties": { "contract": { "const": "presentation/v1" } }
+        "properties": {
+          "contract": { "const": "presentation/v1" }
+        }
       },
       "then": {
         "properties": {
@@ -178,25 +178,162 @@
               {
                 "contains": {
                   "required": ["id"],
-                  "properties": { "id": { "const": "artifact/export" } }
+                  "properties": {
+                    "id": { "const": "artifact/export" }
+                  }
                 }
               },
               {
                 "contains": {
                   "required": ["id"],
-                  "properties": { "id": { "const": "artifact/render" } }
+                  "properties": {
+                    "id": { "const": "artifact/render" }
+                  }
                 }
               },
               {
                 "contains": {
                   "required": ["id"],
-                  "properties": { "id": { "const": "artifact/overflow" } }
+                  "properties": {
+                    "id": { "const": "artifact/overflow" }
+                  }
                 }
               },
               {
                 "contains": {
                   "required": ["id"],
-                  "properties": { "id": { "const": "design/conformance" } }
+                  "properties": {
+                    "id": { "const": "design/conformance" }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["contract", "completion"],
+        "properties": {
+          "contract": { "const": "presentation/v1" },
+          "completion": { "const": "complete" }
+        }
+      },
+      "then": {
+        "required": ["context", "attachments"],
+        "properties": {
+          "sources": {
+            "allOf": [
+              {
+                "contains": {
+                  "required": ["role"],
+                  "properties": {
+                    "role": { "const": "company" }
+                  }
+                }
+              },
+              {
+                "contains": {
+                  "required": ["role"],
+                  "properties": {
+                    "role": { "const": "customer" }
+                  }
+                }
+              },
+              {
+                "contains": {
+                  "required": ["role"],
+                  "properties": {
+                    "role": { "const": "offer" }
+                  }
+                }
+              },
+              {
+                "contains": {
+                  "required": ["role"],
+                  "properties": {
+                    "role": { "const": "voice" }
+                  }
+                }
+              },
+              {
+                "contains": {
+                  "required": ["role"],
+                  "properties": {
+                    "role": { "const": "design" }
+                  }
+                }
+              }
+            ]
+          },
+          "verification": {
+            "allOf": [
+              {
+                "contains": {
+                  "required": ["id", "evidence"],
+                  "properties": {
+                    "id": { "const": "artifact/render" },
+                    "evidence": { "type": "array", "minItems": 1 }
+                  }
+                }
+              },
+              {
+                "contains": {
+                  "required": ["id", "evidence"],
+                  "properties": {
+                    "id": { "const": "artifact/overflow" },
+                    "evidence": { "type": "array", "minItems": 1 }
+                  }
+                }
+              },
+              {
+                "contains": {
+                  "required": ["id", "evidence"],
+                  "properties": {
+                    "id": { "const": "design/conformance" },
+                    "evidence": { "type": "array", "minItems": 1 }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["completion", "deliverable"],
+        "properties": {
+          "completion": { "const": "complete" },
+          "deliverable": {
+            "required": ["kind"],
+            "properties": {
+              "kind": { "const": "remote" }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "verification": {
+            "allOf": [
+              {
+                "contains": {
+                  "required": ["id", "evidence"],
+                  "properties": {
+                    "id": { "const": "artifact/access" },
+                    "evidence": { "type": "array", "minItems": 1 }
+                  }
+                }
+              },
+              {
+                "contains": {
+                  "required": ["id", "evidence"],
+                  "properties": {
+                    "id": { "const": "artifact/revision" },
+                    "evidence": { "type": "array", "minItems": 1 }
+                  }
                 }
               }
             ]
@@ -252,24 +389,15 @@
       "properties": {
         "kind": { "const": "remote" },
         "url": { "type": "string", "format": "uri", "pattern": "^https://" },
-        "provider": {
-          "type": "string",
-          "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
-        },
+        "provider": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$" },
         "revisionId": { "type": "string", "minLength": 1 },
-        "mimeType": {
-          "type": "string",
-          "pattern": "^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$"
-        },
+        "mimeType": { "type": "string", "pattern": "^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$" },
         "title": { "type": "string", "minLength": 1 },
         "export": {
           "type": "object",
           "required": ["mimeType", "size"],
           "properties": {
-            "mimeType": {
-              "type": "string",
-              "pattern": "^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$"
-            },
+            "mimeType": { "type": "string", "pattern": "^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$" },
             "size": { "type": "integer", "minimum": 1 },
             "sha256": {
               "oneOf": [
@@ -280,6 +408,42 @@
           },
           "additionalProperties": false
         }
+      },
+      "additionalProperties": false
+    },
+    "sourceRecord": {
+      "type": "object",
+      "required": ["path", "exists", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "exists": { "const": true },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "role": { "enum": ["company", "customer", "offer", "voice", "design"] },
+        "classification": { "enum": ["public", "internal", "confidential", "restricted"] },
+        "status": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "attachmentRecord": {
+      "type": "object",
+      "required": ["path", "exists", "sha256", "role"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "exists": { "const": true },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "role": { "enum": ["registry", "template", "templateSkill"] }
+      },
+      "additionalProperties": false
+    },
+    "contextRecord": {
+      "type": "object",
+      "required": ["path", "exists", "sha256", "subject"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "exists": { "const": true },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "subject": { "type": "string", "minLength": 1 },
+        "artifact": { "type": "string", "minLength": 1 }
       },
       "additionalProperties": false
     }

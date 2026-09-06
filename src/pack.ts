@@ -3,6 +3,7 @@ import path from 'node:path';
 import { lint as lintDesignDocument } from '@google/design.md/linter';
 import { parseDocument } from './parser.js';
 import { lintDocument } from './lint.js';
+import { safePath, workspaceBoundary } from './resolve.js';
 import {
   CLASSIFICATIONS,
   CONVENTIONAL_FILENAMES,
@@ -23,7 +24,13 @@ import type {
   Summary,
 } from './types.js';
 
-export interface LintPackOptions {
+export interface LoadPackOptions {
+  workspaceRoot?: string;
+  roles?: Array<DocumentKind | 'design'>;
+  design?: string;
+}
+
+export interface LintPackOptions extends LoadPackOptions {
   now?: Date;
 }
 
@@ -46,25 +53,29 @@ export function resolveCompanyPath(input: string): string {
   throw new Error(`No COMPANY.md found in ${absolute}`);
 }
 
-export function loadPack(input: string): LoadedPack {
-  const companyPath = resolveCompanyPath(input);
+export function loadPack(input: string, options: LoadPackOptions = {}): LoadedPack {
+  const boundary = workspaceBoundary(input, options.workspaceRoot);
+  const companyPath = safePath(resolveCompanyPath(input), boundary);
   const root = path.dirname(companyPath);
-  const company = readCompanyDocument(companyPath, root);
+  const cache = new Map<string, ParsedDocument>();
+  const company = readCompanyDocument(companyPath, root, cache);
   const documents: LoadedDocument[] = [];
   const visited = new Set<string>();
 
-  loadCompanyChain(companyPath, 'company', root, documents, visited, [], undefined);
+  loadCompanyChain(companyPath, 'company', root, documents, visited, [], undefined, boundary, cache);
 
   const links = isStringMap(company.meta.links) ? company.meta.links : {};
   for (const role of ['customer', 'offer', 'voice'] as DocumentKind[]) {
+    if (options.roles && !options.roles.includes(role)) continue;
     const linked = links[role];
     if (typeof linked !== 'string' || linked.trim() === '') continue;
-    const linkedPath = resolveLocalLink(companyPath, linked);
-    loadCompanyChain(linkedPath, role, root, documents, visited, [], undefined);
+    const linkedPath = safePath(resolveLocalLink(companyPath, linked), boundary);
+    loadCompanyChain(linkedPath, role, root, documents, visited, [], undefined, boundary, cache);
   }
 
-  if (typeof links.design === 'string' && links.design.trim() !== '') {
-    const designPath = resolveLocalLink(companyPath, links.design);
+  const design = options.design ?? links.design;
+  if ((!options.roles || options.roles.includes('design')) && typeof design === 'string' && design.trim() !== '') {
+    const designPath = safePath(resolveLocalLink(companyPath, design), boundary);
     const key = `design:${designPath}`;
     if (!visited.has(key)) {
       if (!fs.existsSync(designPath)) throw new Error(`Linked design file does not exist: ${links.design}`);
@@ -84,7 +95,7 @@ export function loadPack(input: string): LoadedPack {
 export function lintPack(input: string, options: LintPackOptions = {}): LintReport {
   let pack: LoadedPack;
   try {
-    pack = loadPack(input);
+    pack = loadPack(input, options);
   } catch (error) {
     const root = path.resolve(input);
     const finding: Finding = {
@@ -96,6 +107,10 @@ export function lintPack(input: string, options: LintPackOptions = {}): LintRepo
     return makeReport(root, [{ file: root, kind: 'unknown', findings: [finding] }]);
   }
 
+  return lintLoadedPack(pack, options);
+}
+
+export function lintLoadedPack(pack: LoadedPack, options: LintPackOptions = {}): LintReport {
   const fileReports: FileReport[] = [];
   const rootId = typeof pack.company.meta.id === 'string' ? pack.company.meta.id : undefined;
   const rootMaturity = typeof pack.company.meta.maturity === 'string' ? pack.company.meta.maturity : undefined;
@@ -149,6 +164,17 @@ export function lintPack(input: string, options: LintPackOptions = {}): LintRepo
         message: `company must reference root id ${rootId}`,
       });
     }
+    const rootScope = pack.company.meta.scope;
+    const scope = parsed.meta.scope;
+    if (isStringMap(rootScope) && isStringMap(scope)) {
+      for (const dimension of Object.keys(rootScope)) {
+        const rootValues = rootScope[dimension] as unknown;
+        const values = scope[dimension] as unknown;
+        if (Array.isArray(rootValues) && Array.isArray(values) && !rootValues.includes('all') && !values.includes('all') && !values.some(value => rootValues.includes(value))) {
+          findings.push({ ruleId: 'pack/scope-conflict', severity: 'error', file: parsed.path, path: `scope.${dimension}`, message: `Scope ${dimension} does not overlap the selected company scope` });
+        }
+      }
+    }
     if (rootMaturity && typeof parsed.meta.maturity === 'string' && parsed.meta.maturity !== rootMaturity) {
       findings.push({
         ruleId: 'pack/maturity-mismatch',
@@ -173,40 +199,57 @@ function loadCompanyChain(
   visited: Set<string>,
   stack: string[],
   inheritedBy: string | undefined,
+  boundary: string,
+  cache: Map<string, ParsedDocument>,
 ): void {
-  const resolved = path.resolve(absolutePath);
+  const resolved = safePath(path.resolve(absolutePath), boundary);
   if (stack.includes(resolved)) {
     const cycle = [...stack.slice(stack.indexOf(resolved)), resolved]
       .map((entry) => displayPath(root, entry))
       .join(' → ');
     throw new Error(`extends cycle detected: ${cycle}`);
   }
+  const key = `${role}:${resolved}`;
+  if (visited.has(key)) {
+    const existing = documents.find((document) => document.role === role && document.path === resolved)!;
+    if (inheritedBy) {
+      const children = existing.inheritedByPaths ?? [];
+      if (!children.includes(inheritedBy)) children.push(inheritedBy);
+      existing.inheritedByPaths = children;
+      existing.inheritedBy ??= inheritedBy;
+    } else {
+      existing.inherited = false;
+    }
+    return;
+  }
   if (!fs.existsSync(resolved)) throw new Error(`Linked ${role} file does not exist: ${displayPath(root, resolved)}`);
 
-  const parsed = readCompanyDocument(resolved, root);
+  const parsed = readCompanyDocument(resolved, root, cache);
   const extensions = normalizeExtends(parsed.meta.extends);
   for (const extension of extensions) {
     const basePath = resolveLocalLink(resolved, extension);
-    loadCompanyChain(basePath, role, root, documents, visited, [...stack, resolved], resolved);
+    loadCompanyChain(basePath, role, root, documents, visited, [...stack, resolved], resolved, boundary, cache);
   }
 
-  const key = `${role}:${resolved}`;
-  if (visited.has(key)) return;
   documents.push({
     role,
     path: resolved,
     content: parsed.content,
     parsed,
     inherited: inheritedBy !== undefined,
-    ...(inheritedBy ? { inheritedBy } : {}),
+    ...(inheritedBy ? { inheritedBy, inheritedByPaths: [inheritedBy] } : {}),
   });
   visited.add(key);
 }
 
-function readCompanyDocument(absolutePath: string, root: string): ParsedDocument {
+function readCompanyDocument(absolutePath: string, root: string, cache: Map<string, ParsedDocument>): ParsedDocument {
+  const cached = cache.get(absolutePath);
+  if (cached) return cached;
   if (!fs.existsSync(absolutePath)) throw new Error(`File does not exist: ${displayPath(root, absolutePath)}`);
   const content = fs.readFileSync(absolutePath, 'utf8');
-  return parseDocument(content, displayPath(root, absolutePath));
+  const parsed = { ...parseDocument(content, displayPath(root, absolutePath)), content };
+  cache.set(absolutePath, parsed);
+  return parsed;
 }
 
 function resolveLocalLink(fromFile: string, linkedPath: string): string {
@@ -256,24 +299,27 @@ function lintInheritance(pack: LoadedPack, reports: FileReport[]): void {
   }
 
   for (const document of pack.documents) {
-    if (!document.parsed || !document.inheritedBy) continue;
-    const child = parsedByAbsolutePath.get(document.inheritedBy);
-    if (!child) continue;
+    if (!document.parsed) continue;
     const baseClassification = asClassification(document.parsed.meta.classification);
-    const childClassification = asClassification(child.meta.classification);
-    if (
-      baseClassification
-      && childClassification
-      && classificationRank(childClassification) < classificationRank(baseClassification)
-    ) {
-      const report = reports.find((entry) => entry.file === child.path);
-      report?.findings.push({
-        ruleId: 'governance/classification-downgrade',
-        severity: 'error',
-        file: child.path,
-        path: 'classification',
-        message: `An overlay cannot downgrade inherited ${baseClassification} context to ${childClassification}`,
-      });
+    const children = document.inheritedByPaths ?? (document.inheritedBy ? [document.inheritedBy] : []);
+    for (const childPath of children) {
+      const child = parsedByAbsolutePath.get(childPath);
+      if (!child) continue;
+      const childClassification = asClassification(child.meta.classification);
+      if (
+        baseClassification
+        && childClassification
+        && classificationRank(childClassification) < classificationRank(baseClassification)
+      ) {
+        const report = reports.find((entry) => entry.file === child.path);
+        report?.findings.push({
+          ruleId: 'governance/classification-downgrade',
+          severity: 'error',
+          file: child.path,
+          path: 'classification',
+          message: `An overlay cannot downgrade inherited ${baseClassification} context from ${document.parsed.path} to ${childClassification}`,
+        });
+      }
     }
   }
 }

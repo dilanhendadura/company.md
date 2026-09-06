@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { boundPresentation, pdf as validPdfFixture } from './artifact-fixtures.js';
 import {
   deriveArtifactCompletion,
   formatArtifactVerificationReport,
@@ -127,14 +128,14 @@ test('presentation contract validates known binary formats and rejects unsupport
     { id: 'artifact/overflow', status: 'pass' },
     { id: 'design/conformance', status: 'pass' },
   ];
-  const pdf = Buffer.from('%PDF-1.7\nminimal test fixture');
+  const pdf = validPdfFixture();
   fs.writeFileSync(path.join(root, 'deck.pdf'), pdf);
   const validPdf = verifyArtifactReceipt(writeReceipt(root, 'pdf.json', {
     ...receipt,
     contract: 'presentation/v1',
     profile: 'visual',
     deliverable: { path: 'deck.pdf', exists: true, sha256: digest(pdf) },
-    verification: gates,
+    ...boundPresentation(root, { sha256: digest(pdf) }),
   }), { root });
   assert.equal(validPdf.valid, true);
 
@@ -171,17 +172,12 @@ test('artifact verifier accepts a versioned remote Google Slides presentation', 
         size: 64501,
       },
     },
-    verification: [
-      { id: 'artifact/access', status: 'pass' },
-      { id: 'artifact/revision', status: 'pass' },
-      { id: 'artifact/export', status: 'pass' },
-      { id: 'artifact/render', status: 'pass' },
-      { id: 'artifact/overflow', status: 'pass' },
-      { id: 'design/conformance', status: 'pass' },
-    ],
+    ...boundPresentation(root, { url: 'https://docs.google.com/presentation/d/example/edit', provider: 'google-slides', revisionId: 'revision-42' }, true),
   }), { root });
   assert.equal(report.valid, true);
   assert.equal(report.completion, 'complete');
+  assert.equal(report.verificationMode, 'offline-integrity');
+  assert.ok(report.findings.some((finding) => finding.ruleId === 'remote/offline'));
 });
 
 test('artifact verifier rejects unversioned or malformed remote artifacts', () => {
