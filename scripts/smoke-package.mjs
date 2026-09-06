@@ -7,12 +7,20 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const sandbox = mkdtempSync(join(tmpdir(), "company-md-package-"));
+const sandbox = mkdtempSync(join(tmpdir(), "company md package "));
 const consumer = join(sandbox, "consumer");
 const pack = join(consumer, "acme-context");
 
 function run(command, args, options = {}) {
-  const result = spawnSync(command, args, {
+  // Node's shell mode joins arguments without quoting. Exercise the actual npm
+  // Windows shims while preserving the smoke fixture's spaced paths and values.
+  // Inputs here are test-owned; reject cmd expansion markers instead of trying
+  // to implement a general-purpose shell escaping layer.
+  const quote = value => {
+    if (/["%!\r\n]/.test(value)) throw new Error("Unsupported Windows smoke argument");
+    return `"${value}"`;
+  };
+  const result = spawnSync(options.shell ? quote(command) : command, options.shell ? args.map(quote) : args, {
     cwd: options.cwd ?? repositoryRoot,
     encoding: "utf8",
     shell: options.shell ?? false,
@@ -179,6 +187,10 @@ try {
   }
 
   const context = readFileSync(join(consumer, "context.md"), "utf8");
+  const company = readFileSync(join(pack, "COMPANY.md"), "utf8");
+  if (!company.includes("Acme Corporation") || !company.includes("Corporate Strategy")) {
+    throw new Error("Installed binary did not preserve arguments containing spaces.");
+  }
   if (!context.includes("# Company context bundle") || !context.includes("# Source: DESIGN.md")) {
     throw new Error("Installed package did not generate the expected visual context bundle.");
   }
